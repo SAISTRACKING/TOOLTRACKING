@@ -1,5 +1,3 @@
-
-
 const SUPABASE_URL = 'https://iuavuxtstzpbwvmbrely.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_YI0EmePfKteihRVmCvvhaw_bonybHbx';
 
@@ -45,7 +43,7 @@ const modalEditTool = document.getElementById('modalEditTool');
 const modalDeleteTool = document.getElementById('modalDeleteTool');
 const modalAddEmployee = document.getElementById('modalAddEmployee');
 
-// Formularios
+
 const formLoan = document.getElementById('formLoan');
 const formAddTool = document.getElementById('formAddTool');
 const formEditTool = document.getElementById('formEditTool');
@@ -360,7 +358,7 @@ formAddTool.addEventListener('submit', async (e) => {
     hasError = true;
   }
 
-  // Validación JS de Nombre
+  
   if (!nameValue || nameValue.length < 3) {
     showFieldError(nameInput, 'newToolNameError', 'El nombre debe tener al menos 3 caracteres descriptivos.');
     hasError = true;
@@ -722,7 +720,7 @@ function showToast(msg, type = 'info') {
 function setupAuthSystem() {
   if (!loginOverlay) return;
 
-  // Envío del formulario de Login
+
   if (formLogin) {
     formLogin.addEventListener('submit', (e) => {
       e.preventDefault();
