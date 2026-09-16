@@ -1,8 +1,4 @@
-// =========================================================
-// ToolTracking - Sistema de Control y Préstamo de Herramientas
-// Autores: Jeime Jiménez & Rhonis Julio
-// Conexión Supabase (PostgreSQL) & Controladores CRUD
-// =========================================================
+
 
 const SUPABASE_URL = 'https://iuavuxtstzpbwvmbrely.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_YI0EmePfKteihRVmCvvhaw_bonybHbx';
