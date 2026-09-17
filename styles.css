@@ -2,7 +2,6 @@
   --font-heading: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  /* Color Palette - Premium Slate & Blue */
   --bg-main: #0f172a;
   --bg-card: #1e293b;
   --bg-card-hover: #26354a;
@@ -64,7 +63,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Header */
+
 .app-header {
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(12px);
@@ -120,7 +119,6 @@ body {
   line-height: 1.1;
 }
 
-/* Indicador de Conexión en Vivo */
 .db-status-badge {
   display: inline-flex;
   align-items: center;
@@ -193,7 +191,6 @@ body {
   gap: 0.75rem;
 }
 
-/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -299,7 +296,6 @@ body {
   transition: all var(--transition-fast);
 }
 
-/* Main Container */
 .main-container {
   max-width: 1280px;
   margin: 0 auto;
@@ -309,7 +305,6 @@ body {
   gap: 1.75rem;
 }
 
-/* Stats Section */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -368,7 +363,6 @@ body {
   line-height: 1.2;
 }
 
-/* Search & Filter Section */
 .filter-section {
   display: flex;
   align-items: center;
@@ -474,7 +468,6 @@ body {
   border-color: var(--border-focus);
 }
 
-/* Tools Section */
 .tools-section {
   display: flex;
   flex-direction: column;
@@ -512,7 +505,6 @@ body {
   border: 1px solid var(--border-color);
 }
 
-/* Selector de Vista: Tarjetas vs Tabla */
 .view-switch-wrapper {
   display: flex;
   align-items: center;
@@ -683,7 +675,6 @@ body {
   gap: 0.35rem;
 }
 
-/* Vista Tabla */
 .table-container {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -922,7 +913,6 @@ body {
   margin-top: 0.5rem;
 }
 
-/* Modal de Eliminación */
 .delete-header-icon {
   width: 42px;
   height: 42px;
@@ -956,7 +946,6 @@ body {
   color: #fb7185;
 }
 
-/* Toast Notifications */
 .toast-container {
   position: fixed;
   bottom: 1.5rem;
@@ -1030,9 +1019,7 @@ body {
   }
 }
 
-/* =========================================================
-   Sistema de Login y Autenticación
-   ========================================================= */
+
 .input-with-icon {
   position: relative;
   display: flex;
@@ -1194,7 +1181,6 @@ body {
   color: #fff;
 }
 
-/* User Profile Badge en Encabezado */
 .user-profile-badge {
   display: flex;
   align-items: center;
