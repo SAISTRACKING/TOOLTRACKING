@@ -718,12 +718,11 @@ function showToast(msg, type = 'info') {
 function setupAuthSystem() {
   if (!loginOverlay) return;
 
-
   if (formLogin) {
     formLogin.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
+      const plainPassword = document.getElementById('loginPassword').value;
       clearInputErrors(formLogin);
 
       let hasErrors = false;
@@ -731,16 +730,22 @@ function setupAuthSystem() {
         showFieldError(document.getElementById('loginEmail'), 'loginEmailError', 'Ingresa tu correo electrónico');
         hasErrors = true;
       }
-      if (!password) {
+      if (!plainPassword) {
         showFieldError(document.getElementById('loginPassword'), 'loginPasswordError', 'Ingresa tu contraseña');
         hasErrors = true;
       }
       if (hasErrors) return;
 
+      const password = CryptoJS.SHA256(plainPassword).toString();
+
       handleLogin(email, password);
     });
   }
 
+  if (btnLogout) {
+    btnLogout.addEventListener('click', handleLogout);
+  }
+}
 
   if (btnLogout) {
     btnLogout.addEventListener('click', handleLogout);
@@ -759,7 +764,7 @@ async function handleLogin(email, password) {
   try {
     let loggedUser = null;
 
-    // 1. Intentar validar contra tabla usuarios en Supabase
+   
     if (supabaseClient) {
       const { data, error } = await supabaseClient
         .from('usuarios')
