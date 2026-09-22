@@ -13,27 +13,22 @@ const toolsTableBody = document.getElementById('toolsTableBody');
 const emptyState = document.getElementById('emptyState');
 const resultsCount = document.getElementById('resultsCount');
 
-
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const statusFilter = document.getElementById('statusFilter');
 const cuadrillaFilter = document.getElementById('cuadrillaFilter');
 const btnRefresh = document.getElementById('btnRefresh');
 
-
 const viewModeGridBtn = document.getElementById('viewModeGrid');
 const viewModeTableBtn = document.getElementById('viewModeTable');
 
-
 const dbStatusBadge = document.getElementById('dbStatusBadge');
 const dbStatusText = document.getElementById('dbStatusText');
-
 
 const statTotal = document.getElementById('statTotal');
 const statAvailable = document.getElementById('statAvailable');
 const statBorrowed = document.getElementById('statBorrowed');
 const statEmployees = document.getElementById('statEmployees');
-
 
 const modalLoan = document.getElementById('modalLoan');
 const modalAddTool = document.getElementById('modalAddTool');
@@ -41,12 +36,10 @@ const modalEditTool = document.getElementById('modalEditTool');
 const modalDeleteTool = document.getElementById('modalDeleteTool');
 const modalAddEmployee = document.getElementById('modalAddEmployee');
 
-
 const formLoan = document.getElementById('formLoan');
 const formAddTool = document.getElementById('formAddTool');
 const formEditTool = document.getElementById('formEditTool');
 const formAddEmployee = document.getElementById('formAddEmployee');
-
 
 const loanToolId = document.getElementById('loanToolId');
 const loanToolSubtitle = document.getElementById('loanToolSubtitle');
@@ -59,7 +52,6 @@ const editToolSubtitle = document.getElementById('editToolSubtitle');
 const deleteToolTargetText = document.getElementById('deleteToolTargetText');
 const btnConfirmDeleteTool = document.getElementById('btnConfirmDeleteTool');
 
-
 let currentUser = JSON.parse(localStorage.getItem('tooltracking_user') || 'null');
 const loginOverlay = document.getElementById('loginOverlay');
 const formLogin = document.getElementById('formLogin');
@@ -67,7 +59,6 @@ const userProfileBadge = document.getElementById('userProfileBadge');
 const headerUserName = document.getElementById('headerUserName');
 const headerUserRole = document.getElementById('headerUserRole');
 const btnLogout = document.getElementById('btnLogout');
-
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
@@ -82,14 +73,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-
 async function loadData() {
   setConnectionStatus('checking', 'Sincronizando...');
   try {
     if (!supabaseClient) {
       throw new Error('Cliente de Supabase no cargado');
     }
-
 
     const { data: empData, error: empError } = await supabaseClient
       .from('empleados')
@@ -99,7 +88,6 @@ async function loadData() {
     if (empError) throw empError;
     employees = empData || [];
 
-  
     const { data: toolData, error: toolError } = await supabaseClient
       .from('herramientas')
       .select('*')
@@ -107,7 +95,6 @@ async function loadData() {
 
     if (toolError) throw toolError;
     tools = toolData || [];
-
 
     setConnectionStatus('connected', 'En Línea (Supabase)');
     updateStats();
@@ -120,13 +107,11 @@ async function loadData() {
   }
 }
 
-
 function setConnectionStatus(status, text) {
   if (!dbStatusBadge || !dbStatusText) return;
   dbStatusBadge.className = `db-status-badge status-${status}`;
   dbStatusText.textContent = text;
 }
-
 
 function getFilteredTools() {
   const searchTerm = searchInput.value.trim().toLowerCase();
@@ -134,16 +119,13 @@ function getFilteredTools() {
   const selectedCuadrilla = cuadrillaFilter.value;
 
   return tools.filter(tool => {
-   
     const matchName = tool.nombre && tool.nombre.toLowerCase().includes(searchTerm);
     const matchId = tool.id && tool.id.toString().includes(searchTerm);
     const matchEmployee = tool.prestada_a && tool.prestada_a.toLowerCase().includes(searchTerm);
     const matchesSearch = matchName || matchId || matchEmployee;
 
-    
     const matchesStatus = (selectedStatus === 'all') || (tool.estado === selectedStatus);
 
-   
     let matchesCuadrilla = true;
     if (selectedCuadrilla !== 'all') {
       if (tool.estado === 'Prestada' && tool.prestada_a) {
@@ -178,7 +160,6 @@ function renderAllViews() {
     window.lucide.createIcons();
   }
 }
-
 
 function renderToolsGrid(toolList) {
   toolsGrid.innerHTML = '';
@@ -262,7 +243,6 @@ function renderToolsGrid(toolList) {
   });
 }
 
-
 function renderToolsTable(toolList) {
   toolsTableBody.innerHTML = '';
 
@@ -315,7 +295,6 @@ function renderToolsTable(toolList) {
   });
 }
 
-
 function applyViewMode(mode) {
   currentViewMode = mode;
   localStorage.setItem('tooltracking_view', mode);
@@ -333,7 +312,6 @@ function applyViewMode(mode) {
   }
 }
 
-
 formAddTool.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearInputErrors(formAddTool);
@@ -346,7 +324,6 @@ formAddTool.addEventListener('submit', async (e) => {
 
   let hasError = false;
 
- 
   const idNum = parseInt(idValue, 10);
   if (!idValue || isNaN(idNum) || idNum <= 0) {
     showFieldError(idInput, 'newToolIdError', 'El código debe ser un número entero mayor a 0.');
@@ -356,7 +333,6 @@ formAddTool.addEventListener('submit', async (e) => {
     hasError = true;
   }
 
-  
   if (!nameValue || nameValue.length < 3) {
     showFieldError(nameInput, 'newToolNameError', 'El nombre debe tener al menos 3 caracteres descriptivos.');
     hasError = true;
@@ -385,7 +361,6 @@ formAddTool.addEventListener('submit', async (e) => {
   }
 });
 
-
 formAddEmployee.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearInputErrors(formAddEmployee);
@@ -398,7 +373,6 @@ formAddEmployee.addEventListener('submit', async (e) => {
 
   let hasError = false;
 
-  
   if (!nameValue || nameValue.length < 3) {
     showFieldError(nameInput, 'newEmployeeNameError', 'El nombre del operario debe tener al menos 3 caracteres.');
     hasError = true;
@@ -429,7 +403,6 @@ formAddEmployee.addEventListener('submit', async (e) => {
   }
 });
 
-
 window.openEditToolModal = function(id, name) {
   clearInputErrors(formEditTool);
   editToolId.value = id;
@@ -445,7 +418,6 @@ formEditTool.addEventListener('submit', async (e) => {
 
   const id = parseInt(editToolId.value, 10);
   const updatedName = editToolName.value.trim();
-
 
   if (!updatedName || updatedName.length < 3) {
     showFieldError(editToolName, 'editToolNameError', 'El nombre debe tener al menos 3 caracteres.');
@@ -468,7 +440,6 @@ formEditTool.addEventListener('submit', async (e) => {
     showToast('Error al editar: ' + err.message, 'error');
   }
 });
-
 
 window.openDeleteModal = function(id, name) {
   toolPendingDelete = { id, name };
@@ -498,7 +469,6 @@ btnConfirmDeleteTool.addEventListener('click', async () => {
     showToast('Error al eliminar: ' + err.message, 'error');
   }
 });
-
 
 window.openLoanModal = function(id, name) {
   clearInputErrors(formLoan);
@@ -568,7 +538,6 @@ window.returnTool = async function(id) {
   }
 };
 
-
 function showFieldError(inputElement, errorElementId, message) {
   inputElement.classList.add('is-invalid');
   const errDiv = document.getElementById(errorElementId);
@@ -621,15 +590,12 @@ function setupEventListeners() {
     renderAllViews();
   });
 
-
   statusFilter.addEventListener('change', renderAllViews);
   cuadrillaFilter.addEventListener('change', renderAllViews);
   btnRefresh.addEventListener('click', loadData);
 
-
   viewModeGridBtn.addEventListener('click', () => applyViewMode('grid'));
   viewModeTableBtn.addEventListener('click', () => applyViewMode('table'));
-
 
   document.getElementById('btnOpenAddTool').addEventListener('click', () => {
     clearInputErrors(formAddTool);
@@ -643,7 +609,6 @@ function setupEventListeners() {
     modalAddEmployee.style.display = 'flex';
   });
 
- 
   document.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', closeModals);
   });
@@ -714,7 +679,6 @@ function showToast(msg, type = 'info') {
   }, 3500);
 }
 
-
 function setupAuthSystem() {
   if (!loginOverlay) return;
 
@@ -747,11 +711,6 @@ function setupAuthSystem() {
   }
 }
 
-  if (btnLogout) {
-    btnLogout.addEventListener('click', handleLogout);
-  }
-}
-
 async function handleLogin(email, password) {
   const submitBtn = document.getElementById('btnSubmitLogin');
   const originalText = submitBtn ? submitBtn.innerHTML : '';
@@ -778,7 +737,6 @@ async function handleLogin(email, password) {
     }
 
     if (!loggedUser) {
-      // Lista con las contraseñas convertidas previamente a Hash SHA-256
       const demoUsers = [
         { 
           nombre: 'Administrador General', 
@@ -800,56 +758,6 @@ async function handleLogin(email, password) {
         }
       ];
 
-      const match = demoUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-      if (match) {
-        loggedUser = match;
-      }
-    }
-
-    if (loggedUser) {
-      applyUserSession(loggedUser);
-      showToast(`¡Bienvenido al sistema, ${loggedUser.nombre}!`, 'success');
-      await loadData();
-    } else {
-      showFieldError(document.getElementById('loginPassword'), 'loginPasswordError', 'Correo o contraseña incorrectos');
-      showToast('Acceso denegado. Solo usuarios autorizados.', 'error');
-    }
-  } catch (err) {
-    console.error('Error durante login:', err);
-    showToast('Error al iniciar sesión: ' + err.message, 'error');
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
-      if (window.lucide) window.lucide.createIcons();
-    }
-  }
-}
-
-  try {
-    let loggedUser = null;
-
-   
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('usuarios')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .eq('password', password)
-        .maybeSingle();
-
-      if (!error && data) {
-        loggedUser = data;
-      }
-    }
-
-   
-    if (!loggedUser) {
-      const demoUsers = [
-        { nombre: 'Administrador General', email: 'admin@tooltracking.com', password: 'admin123', rol: 'Administrador General' },
-        { nombre: 'Jeime Jiménez', email: 'jeime@tooltracking.com', password: '123456', rol: 'Supervisor de Bodega' },
-        { nombre: 'Rhonis Julio', email: 'rhonis@tooltracking.com', password: '123456', rol: 'Supervisor de Bodega' }
-      ];
       const match = demoUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
       if (match) {
         loggedUser = match;
