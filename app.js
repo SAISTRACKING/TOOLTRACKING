@@ -764,6 +764,71 @@ async function handleLogin(email, password) {
   try {
     let loggedUser = null;
 
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from('usuarios')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .eq('password', password)
+        .maybeSingle();
+
+      if (!error && data) {
+        loggedUser = data;
+      }
+    }
+
+    if (!loggedUser) {
+      // Lista con las contraseñas convertidas previamente a Hash SHA-256
+      const demoUsers = [
+        { 
+          nombre: 'Administrador General', 
+          email: 'admin@tooltracking.com', 
+          password: CryptoJS.SHA256('admin123').toString(), 
+          rol: 'Administrador General' 
+        },
+        { 
+          nombre: 'Jeime Jiménez', 
+          email: 'jeime@tooltracking.com', 
+          password: CryptoJS.SHA256('123456').toString(), 
+          rol: 'Supervisor de Bodega' 
+        },
+        { 
+          nombre: 'Rhonis Julio', 
+          email: 'rhonis@tooltracking.com', 
+          password: CryptoJS.SHA256('123456').toString(), 
+          rol: 'Supervisor de Bodega' 
+        }
+      ];
+
+      const match = demoUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      if (match) {
+        loggedUser = match;
+      }
+    }
+
+    if (loggedUser) {
+      applyUserSession(loggedUser);
+      showToast(`¡Bienvenido al sistema, ${loggedUser.nombre}!`, 'success');
+      await loadData();
+    } else {
+      showFieldError(document.getElementById('loginPassword'), 'loginPasswordError', 'Correo o contraseña incorrectos');
+      showToast('Acceso denegado. Solo usuarios autorizados.', 'error');
+    }
+  } catch (err) {
+    console.error('Error durante login:', err);
+    showToast('Error al iniciar sesión: ' + err.message, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+}
+
+  try {
+    let loggedUser = null;
+
    
     if (supabaseClient) {
       const { data, error } = await supabaseClient
