@@ -1,29 +1,18 @@
-// =========================================================
-// ToolTracking - Sistema de Control y Préstamo de Herramientas
-// Autores: Jeime Jiménez & Rhonis Julio
-// Conexión Supabase (PostgreSQL), Cifrado SHA-256, Trazabilidad y CRUD
-// =========================================================
-
-// 1. Configuración de Variables de Entorno (Sin credenciales expuestas en código)
 const ENV = (typeof window !== 'undefined' && window.__ENV__) ? window.__ENV__ : {};
 
-// Sanitización automática de URL y Clave almacenadas
 let rawUrl = (ENV.SUPABASE_URL || localStorage.getItem('SUPABASE_URL') || '').trim();
 let rawKey = (ENV.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY') || '').trim();
 
-// Si por error se intercambiaron
 if (rawKey.startsWith('http') && !rawUrl.startsWith('http')) {
   const tmp = rawUrl;
   rawUrl = rawKey;
   rawKey = tmp;
 }
 
-// Extraer el dominio base https://...supabase.co sin paths ni barras finales
 const urlMatch = rawUrl.match(/https?:\/\/[a-z0-9-]+\.supabase\.co/i);
 const SUPABASE_URL = urlMatch ? urlMatch[0] : rawUrl.replace(/\/+$/, '');
 const SUPABASE_KEY = rawKey;
 
-// Actualizar localStorage corregido si había un path inválido
 if (SUPABASE_URL && localStorage.getItem('SUPABASE_URL') !== SUPABASE_URL) {
   localStorage.setItem('SUPABASE_URL', SUPABASE_URL);
 }
@@ -31,12 +20,10 @@ if (SUPABASE_KEY && localStorage.getItem('SUPABASE_ANON_KEY') !== SUPABASE_KEY) 
   localStorage.setItem('SUPABASE_ANON_KEY', SUPABASE_KEY);
 }
 
-// Inicializar cliente Supabase de forma segura
 const supabaseClient = (window.supabase && SUPABASE_URL && SUPABASE_KEY) 
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
   : null;
 
-// Estado global en memoria
 let tools = [];
 let employees = [];
 let traceabilityLogs = [];
@@ -44,53 +31,44 @@ let currentViewMode = localStorage.getItem('tooltracking_view') || 'grid'; // 'g
 let toolPendingDelete = null;
 let currentDetailToolId = null;
 
-// Elementos del DOM - Contenedores de Listado
 const toolsGrid = document.getElementById('toolsGrid');
 const toolsTableContainer = document.getElementById('toolsTableContainer');
 const toolsTableBody = document.getElementById('toolsTableBody');
 const emptyState = document.getElementById('emptyState');
 const resultsCount = document.getElementById('resultsCount');
 
-// Filtros y Búsqueda
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const statusFilter = document.getElementById('statusFilter');
 const cuadrillaFilter = document.getElementById('cuadrillaFilter');
 const btnRefresh = document.getElementById('btnRefresh');
 
-// Selector de Vistas
 const viewModeGridBtn = document.getElementById('viewModeGrid');
 const viewModeTableBtn = document.getElementById('viewModeTable');
 
-// Estado de Conexión en Header
 const dbStatusBadge = document.getElementById('dbStatusBadge');
 const dbStatusText = document.getElementById('dbStatusText');
 
-// Estadísticas Rápidas
 const statTotal = document.getElementById('statTotal');
 const statAvailable = document.getElementById('statAvailable');
 const statBorrowed = document.getElementById('statBorrowed');
 const statEmployees = document.getElementById('statEmployees');
 
-// Modales Existentes
 const modalLoan = document.getElementById('modalLoan');
 const modalAddTool = document.getElementById('modalAddTool');
 const modalEditTool = document.getElementById('modalEditTool');
 const modalDeleteTool = document.getElementById('modalDeleteTool');
 const modalAddEmployee = document.getElementById('modalAddEmployee');
 
-// Nuevos Modales: Vista de Detalles y Trazabilidad
 const modalToolDetails = document.getElementById('modalToolDetails');
 const modalTraceability = document.getElementById('modalTraceability');
 const btnOpenTraceability = document.getElementById('btnOpenTraceability');
 
-// Formularios
 const formLoan = document.getElementById('formLoan');
 const formAddTool = document.getElementById('formAddTool');
 const formEditTool = document.getElementById('formEditTool');
 const formAddEmployee = document.getElementById('formAddEmployee');
 
-// Inputs de Modales
 const loanToolId = document.getElementById('loanToolId');
 const loanToolSubtitle = document.getElementById('loanToolSubtitle');
 const loanEmployeeSelect = document.getElementById('loanEmployeeSelect');
@@ -102,7 +80,6 @@ const editToolSubtitle = document.getElementById('editToolSubtitle');
 const deleteToolTargetText = document.getElementById('deleteToolTargetText');
 const btnConfirmDeleteTool = document.getElementById('btnConfirmDeleteTool');
 
-// Filtros y Controles de Trazabilidad
 const traceSearchInput = document.getElementById('traceSearchInput');
 const traceTypeFilter = document.getElementById('traceTypeFilter');
 const btnExportTraceability = document.getElementById('btnExportTraceability');
@@ -110,7 +87,6 @@ const traceTableBody = document.getElementById('traceTableBody');
 const traceCountBadge = document.getElementById('traceCountBadge');
 const traceEmptyState = document.getElementById('traceEmptyState');
 
-// Elementos de Autenticación
 let currentUser = JSON.parse(localStorage.getItem('tooltracking_user') || 'null');
 const loginOverlay = document.getElementById('loginOverlay');
 const formLogin = document.getElementById('formLogin');
@@ -119,9 +95,7 @@ const headerUserName = document.getElementById('headerUserName');
 const headerUserRole = document.getElementById('headerUserRole');
 const btnLogout = document.getElementById('btnLogout');
 
-// =========================================================
-// Inicialización de la Aplicación
-// =========================================================
+
 document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   setupAuthSystem();
@@ -136,10 +110,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// =========================================================
-// =========================================================
-// Criptografía: Algoritmo Estándar SHA-256 (100% Compatible con file:// y https://)
-// =========================================================
 function sha256Sync(ascii) {
   function rightRotate(value, amount) {
     return (value >>> amount) | (value << (32 - amount));
@@ -227,9 +197,7 @@ async function hashPassword(plainText) {
   return sha256Sync(plainText);
 }
 
-// =========================================================
-// Carga y Sincronización de Datos con Supabase
-// =========================================================
+
 async function loadData() {
   setConnectionStatus('checking', 'Sincronizando...');
   try {
@@ -237,7 +205,7 @@ async function loadData() {
       throw new Error('Cliente de Supabase no inicializado');
     }
 
-    // 1. Cargar Empleados
+  
     const { data: empData, error: empError } = await supabaseClient
       .from('empleados')
       .select('*')
@@ -246,7 +214,7 @@ async function loadData() {
     if (empError) throw empError;
     employees = empData || [];
 
-    // 2. Cargar Herramientas
+
     const { data: toolData, error: toolError } = await supabaseClient
       .from('herramientas')
       .select('*')
@@ -255,7 +223,7 @@ async function loadData() {
     if (toolError) throw toolError;
     tools = toolData || [];
 
-    // Actualizar UI
+
     setConnectionStatus('connected', 'En Línea (Supabase)');
     updateStats();
     populateEmployeeSelect();
@@ -267,16 +235,14 @@ async function loadData() {
   }
 }
 
-// Indicador visual de estado de conexión
+
 function setConnectionStatus(status, text) {
   if (!dbStatusBadge || !dbStatusText) return;
   dbStatusBadge.className = `db-status-badge status-${status}`;
   dbStatusText.textContent = text;
 }
 
-// =========================================================
-// Sistema de Trazabilidad y Auditoría de Movimientos
-// =========================================================
+
 function getInitialMockTraceability() {
   const now = Date.now();
   return [
@@ -356,7 +322,7 @@ async function loadTraceability() {
       traceabilityLogs = data;
       localStorage.setItem('tooltracking_trazabilidad', JSON.stringify(data));
     } else {
-      // Si la tabla está vacía en Supabase, inicializar con eventos demostrativos
+      
       traceabilityLogs = getInitialMockTraceability();
       localStorage.setItem('tooltracking_trazabilidad', JSON.stringify(traceabilityLogs));
       try {
@@ -388,11 +354,11 @@ async function registrarTrazabilidad({ herramienta_id, herramienta_nombre, tipo_
     observaciones: observaciones || ''
   };
 
-  // Guardar en memoria y LocalStorage inmediatamente para reactividad instantánea
+
   traceabilityLogs.unshift({ ...newRecord, id: Date.now() });
   localStorage.setItem('tooltracking_trazabilidad', JSON.stringify(traceabilityLogs));
 
-  // Sincronizar en segundo plano con Supabase PostgreSQL
+
   if (supabaseClient) {
     try {
       await supabaseClient.from('trazabilidad').insert([newRecord]);
@@ -521,9 +487,6 @@ function exportTraceabilityToCSV() {
   showToast('Reporte de trazabilidad exportado a CSV exitosamente', 'success');
 }
 
-// =========================================================
-// Ficha Técnica y Vista de Detalles de Herramienta
-// =========================================================
 window.openToolDetailModal = function(id) {
   const tool = tools.find(t => t.id === id);
   if (!tool) return;
@@ -536,7 +499,7 @@ window.openToolDetailModal = function(id) {
     cuadrillaVal = emp ? `Cuadrilla ${emp.cuadrilla}` : 'Sin asignar';
   }
 
-  // Llenar campos
+
   document.getElementById('detailToolIdBadge').textContent = `#${tool.id}`;
   document.getElementById('detailToolTitle').textContent = tool.nombre;
   document.getElementById('detailFieldId').textContent = `#${tool.id}`;
@@ -546,7 +509,6 @@ window.openToolDetailModal = function(id) {
   document.getElementById('detailFieldLoanDate').textContent = tool.fecha_salida ? formatDate(tool.fecha_salida) : 'No retirado';
   document.getElementById('detailBarcodeText').textContent = `TOOL-${String(tool.id).padStart(4, '0')}-TRACE`;
 
-  // Banner de Estado
   const statusDot = document.getElementById('detailStatusDot');
   const statusText = document.getElementById('detailStatusText');
   const timeElapsed = document.getElementById('detailTimeElapsed');
@@ -563,7 +525,7 @@ window.openToolDetailModal = function(id) {
     timeElapsed.textContent = tool.fecha_salida ? `Tiempo en uso: ${calcElapsedTime(tool.fecha_salida)}` : 'En poder de cuadrilla';
   }
 
-  // Historial específico de esta herramienta
+
   const historyList = document.getElementById('detailHistoryList');
   const toolLogs = traceabilityLogs.filter(log => log.herramienta_id === tool.id);
   const badgeCount = document.getElementById('detailHistoryCountBadge');
@@ -590,7 +552,7 @@ window.openToolDetailModal = function(id) {
     }).join('');
   }
 
-  // Acciones en el pie del modal de detalles
+ 
   const footerActions = document.getElementById('detailFooterActions');
   footerActions.innerHTML = `
     <button class="btn btn-secondary btn-sm" onclick="closeModals(); openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
@@ -625,25 +587,23 @@ function calcElapsedTime(dateStr) {
   return `Hace ${Math.max(1, diffMins)} minuto(s)`;
 }
 
-// =========================================================
-// Filtros y Renderizado Dinámico
-// =========================================================
+
 function getFilteredTools() {
   const searchTerm = searchInput.value.trim().toLowerCase();
   const selectedStatus = statusFilter.value;
   const selectedCuadrilla = cuadrillaFilter.value;
 
   return tools.filter(tool => {
-    // Filtro de texto por ID, nombre o responsable
+    
     const matchName = tool.nombre && tool.nombre.toLowerCase().includes(searchTerm);
     const matchId = tool.id && tool.id.toString().includes(searchTerm);
     const matchEmployee = tool.prestada_a && tool.prestada_a.toLowerCase().includes(searchTerm);
     const matchesSearch = matchName || matchId || matchEmployee;
 
-    // Filtro de estado
+ 
     const matchesStatus = (selectedStatus === 'all') || (tool.estado === selectedStatus);
 
-    // Filtro de cuadrilla
+   
     let matchesCuadrilla = true;
     if (selectedCuadrilla !== 'all') {
       if (tool.estado === 'Prestada' && tool.prestada_a) {
@@ -679,7 +639,6 @@ function renderAllViews() {
   }
 }
 
-// Renderizado Vista 1: Tarjetas
 function renderToolsGrid(toolList) {
   toolsGrid.innerHTML = '';
 
@@ -767,7 +726,6 @@ function renderToolsGrid(toolList) {
   });
 }
 
-// Renderizado Vista Tabla
 function renderToolsTable(toolList) {
   toolsTableBody.innerHTML = '';
 
@@ -825,7 +783,7 @@ function renderToolsTable(toolList) {
   });
 }
 
-// Alternar entre Tarjetas y Tabla
+
 function applyViewMode(mode) {
   currentViewMode = mode;
   localStorage.setItem('tooltracking_view', mode);
@@ -843,11 +801,7 @@ function applyViewMode(mode) {
   }
 }
 
-// =========================================================
-// CRUD: CREAR (Formulario con Validación JS)
-// =========================================================
 
-// 1. Crear Nueva Herramienta
 formAddTool.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearInputErrors(formAddTool);
@@ -860,7 +814,6 @@ formAddTool.addEventListener('submit', async (e) => {
 
   let hasError = false;
 
-  // Validación JS de ID
   const idNum = parseInt(idValue, 10);
   if (!idValue || isNaN(idNum) || idNum <= 0) {
     showFieldError(idInput, 'newToolIdError', 'El código debe ser un número entero mayor a 0.');
@@ -870,7 +823,6 @@ formAddTool.addEventListener('submit', async (e) => {
     hasError = true;
   }
 
-  // Validación JS de Nombre
   if (!nameValue || nameValue.length < 3) {
     showFieldError(nameInput, 'newToolNameError', 'El nombre debe tener al menos 3 caracteres descriptivos.');
     hasError = true;
@@ -889,7 +841,6 @@ formAddTool.addEventListener('submit', async (e) => {
 
     if (error) throw error;
 
-    // Registrar en Trazabilidad
     await registrarTrazabilidad({
       herramienta_id: idNum,
       herramienta_nombre: nameValue,
@@ -907,7 +858,7 @@ formAddTool.addEventListener('submit', async (e) => {
   }
 });
 
-// 2. Crear Nuevo Empleado
+
 formAddEmployee.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearInputErrors(formAddEmployee);
@@ -920,7 +871,7 @@ formAddEmployee.addEventListener('submit', async (e) => {
 
   let hasError = false;
 
-  // Validación JS de Nombre
+  
   if (!nameValue || nameValue.length < 3) {
     showFieldError(nameInput, 'newEmployeeNameError', 'El nombre del operario debe tener al menos 3 caracteres.');
     hasError = true;
@@ -951,9 +902,7 @@ formAddEmployee.addEventListener('submit', async (e) => {
   }
 });
 
-// =========================================================
-// CRUD: EDITAR (Modificar Registro Existente)
-// =========================================================
+
 window.openEditToolModal = function(id, name) {
   clearInputErrors(formEditTool);
   editToolId.value = id;
@@ -970,7 +919,7 @@ formEditTool.addEventListener('submit', async (e) => {
   const id = parseInt(editToolId.value, 10);
   const updatedName = editToolName.value.trim();
 
-  // Validación JS
+
   if (!updatedName || updatedName.length < 3) {
     showFieldError(editToolName, 'editToolNameError', 'El nombre debe tener al menos 3 caracteres.');
     return;
@@ -984,7 +933,7 @@ formEditTool.addEventListener('submit', async (e) => {
 
     if (error) throw error;
 
-    // Registrar en Trazabilidad
+ 
     await registrarTrazabilidad({
       herramienta_id: id,
       herramienta_nombre: updatedName,
@@ -1001,9 +950,7 @@ formEditTool.addEventListener('submit', async (e) => {
   }
 });
 
-// =========================================================
-// CRUD: ELIMINAR (Borrado con Modal de Confirmación)
-// =========================================================
+
 window.openDeleteModal = function(id, name) {
   toolPendingDelete = { id, name };
   deleteToolTargetText.textContent = `#${id} - ${name}`;
@@ -1023,7 +970,7 @@ btnConfirmDeleteTool.addEventListener('click', async () => {
 
     if (error) throw error;
 
-    // Registrar en Trazabilidad
+
     await registrarTrazabilidad({
       herramienta_id: id,
       herramienta_nombre: name,
@@ -1041,9 +988,7 @@ btnConfirmDeleteTool.addEventListener('click', async () => {
   }
 });
 
-// =========================================================
-// GESTIÓN DE PRÉSTAMOS (Prestar y Devolver)
-// =========================================================
+
 window.openLoanModal = function(id, name) {
   clearInputErrors(formLoan);
   loanToolId.value = id;
@@ -1082,7 +1027,7 @@ formLoan.addEventListener('submit', async (e) => {
 
     if (error) throw error;
 
-    // Registrar en Trazabilidad
+  
     await registrarTrazabilidad({
       herramienta_id: id,
       herramienta_nombre: toolName,
@@ -1120,7 +1065,7 @@ window.returnTool = async function(id) {
 
     if (error) throw error;
 
-    // Registrar en Trazabilidad
+    
     await registrarTrazabilidad({
       herramienta_id: id,
       herramienta_nombre: toolName,
@@ -1138,9 +1083,7 @@ window.returnTool = async function(id) {
   }
 };
 
-// =========================================================
-// Utilidades de Validación y UI
-// =========================================================
+
 function showFieldError(inputElement, errorElementId, message) {
   inputElement.classList.add('is-invalid');
   const errDiv = document.getElementById(errorElementId);
@@ -1181,7 +1124,7 @@ function populateEmployeeSelect() {
 }
 
 function setupEventListeners() {
-  // Búsqueda en tiempo real
+ 
   searchInput.addEventListener('input', () => {
     clearSearchBtn.style.display = searchInput.value ? 'flex' : 'none';
     renderAllViews();
@@ -1193,7 +1136,7 @@ function setupEventListeners() {
     renderAllViews();
   });
 
-  // Filtros
+  
   statusFilter.addEventListener('change', renderAllViews);
   cuadrillaFilter.addEventListener('change', renderAllViews);
   btnRefresh.addEventListener('click', async () => {
@@ -1201,11 +1144,11 @@ function setupEventListeners() {
     await loadTraceability();
   });
 
-  // Selector de Vistas: Tarjetas vs Tabla
+ 
   viewModeGridBtn.addEventListener('click', () => applyViewMode('grid'));
   viewModeTableBtn.addEventListener('click', () => applyViewMode('table'));
 
-  // Configuración de credenciales locales de forma segura en el navegador
+  
   if (dbStatusBadge) {
     dbStatusBadge.style.cursor = 'pointer';
     dbStatusBadge.title = 'Haz clic para configurar o cambiar la conexión con Supabase';
@@ -1224,7 +1167,7 @@ function setupEventListeners() {
     });
   }
 
-  // Apertura de Modales
+  
   document.getElementById('btnOpenAddTool').addEventListener('click', () => {
     clearInputErrors(formAddTool);
     formAddTool.reset();
@@ -1237,7 +1180,7 @@ function setupEventListeners() {
     modalAddEmployee.style.display = 'flex';
   });
 
-  // Botón de Trazabilidad en Header
+  
   if (btnOpenTraceability) {
     btnOpenTraceability.addEventListener('click', () => {
       renderTraceability();
@@ -1245,7 +1188,7 @@ function setupEventListeners() {
     });
   }
 
-  // Búsqueda y Filtros de Trazabilidad
+ 
   if (traceSearchInput) {
     traceSearchInput.addEventListener('input', renderTraceability);
   }
@@ -1256,7 +1199,7 @@ function setupEventListeners() {
     btnExportTraceability.addEventListener('click', exportTraceabilityToCSV);
   }
 
-  // Cierre de Modales
+
   document.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', closeModals);
   });
@@ -1330,13 +1273,11 @@ function showToast(msg, type = 'info') {
   }, 3500);
 }
 
-// =========================================================
-// Sistema de Autenticación con Cifrado Criptográfico (SHA-256)
-// =========================================================
+
 function setupAuthSystem() {
   if (!loginOverlay) return;
 
-  // Envío del formulario de Login
+ 
   if (formLogin) {
     formLogin.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -1359,13 +1300,13 @@ function setupAuthSystem() {
     });
   }
 
-  // Botón Cerrar Sesión
+
   if (btnLogout) {
     btnLogout.addEventListener('click', handleLogout);
   }
 }
 
-// Acceso rápido desde botones de prueba
+
 window.quickLogin = function(fillEmail, fillPassword) {
   const emailInput = document.getElementById('loginEmail');
   const passInput = document.getElementById('loginPassword');
@@ -1391,10 +1332,10 @@ async function handleLogin(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
 
-    // Calcular Hash Criptográfico SHA-256 de la contraseña ingresada
+    
     const passwordHash = await hashPassword(cleanPassword);
 
-    // 1. Usuarios autorizados predeterminados con contraseñas encriptadas SHA-256
+   
     const demoUsers = [
       {
         nombre: 'Jeime Jiménez',
@@ -1422,7 +1363,7 @@ async function handleLogin(email, password) {
       }
     ];
 
-    // Verificar primero en cuentas locales autorizadas (instantáneo y sin bloqueo de red)
+    
     const localMatch = demoUsers.find(u => {
       const matchUser = u.email === cleanEmail || (u.aliases && u.aliases.includes(cleanEmail));
       const matchPass = (u.passwordHash === passwordHash || u.plainPass === cleanPassword);
@@ -1437,7 +1378,7 @@ async function handleLogin(email, password) {
       };
     }
 
-    // 2. Si no es demo, intentar validar contra tabla usuarios en Supabase
+   
     if (!loggedUser && supabaseClient) {
       try {
         const { data: hashedData } = await supabaseClient
@@ -1450,7 +1391,7 @@ async function handleLogin(email, password) {
         if (hashedData) {
           loggedUser = hashedData;
         } else {
-          // Compatibilidad: si la BD tiene la clave en texto plano, validar y actualizar al hash SHA-256
+          
           const { data: plainData } = await supabaseClient
             .from('usuarios')
             .select('*')
@@ -1473,7 +1414,7 @@ async function handleLogin(email, password) {
       }
     }
 
-    // 3. Si es un operario registrado en empleados, permitir acceso con contraseña general
+   
     if (!loggedUser && employees.length > 0) {
       const empMatch = employees.find(e => e.nombre.toLowerCase() === cleanEmail);
       if (empMatch && (cleanPassword === '123456' || cleanPassword === 'admin123')) {
