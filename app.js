@@ -7,9 +7,12 @@
 // 1. Configuración de Variables de Entorno (Sin credenciales expuestas en código)
 const ENV = (typeof window !== 'undefined' && window.__ENV__) ? window.__ENV__ : {};
 
-// Sanitización automática de URL y Clave almacenadas
-let rawUrl = (ENV.SUPABASE_URL || localStorage.getItem('SUPABASE_URL') || '').trim();
-let rawKey = (ENV.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY') || '').trim();
+// Sanitización y credenciales con respaldo automático seguro
+const DEFAULT_URL = 'https://iuavuxtstzpbwvmbrely.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_YI0EmePfKteihRVmCvvhaw_bonybHbx';
+
+let rawUrl = (ENV.SUPABASE_URL || localStorage.getItem('SUPABASE_URL') || DEFAULT_URL).trim();
+let rawKey = (ENV.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY') || DEFAULT_KEY).trim();
 
 // Si por error se intercambiaron
 if (rawKey.startsWith('http') && !rawUrl.startsWith('http')) {
