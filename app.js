@@ -1208,23 +1208,10 @@ function setupEventListeners() {
   viewModeGridBtn.addEventListener('click', () => applyViewMode('grid'));
   viewModeTableBtn.addEventListener('click', () => applyViewMode('table'));
 
-  // Configuración de credenciales locales de forma segura en el navegador
+  // Indicador de conexión con la base de datos (solo lectura)
   if (dbStatusBadge) {
-    dbStatusBadge.style.cursor = 'pointer';
-    dbStatusBadge.title = 'Haz clic para configurar o cambiar la conexión con Supabase';
-    dbStatusBadge.addEventListener('click', () => {
-      const currentUrl = localStorage.getItem('SUPABASE_URL') || '';
-      const currentKey = localStorage.getItem('SUPABASE_ANON_KEY') || '';
-      const newUrl = prompt('Configuración Segura Local:\nIngresa la SUPABASE_URL (ej: https://iuavuxtstzpbwvmbrely.supabase.co):', currentUrl);
-      if (newUrl === null) return;
-      const newKey = prompt('Configuración Segura Local:\nIngresa la SUPABASE_ANON_KEY (la que empieza por sb_publishable_...):', currentKey);
-      if (newKey === null) return;
-
-      const urlClean = (newUrl.match(/https?:\/\/[a-z0-9-]+\.supabase\.co/i) || [newUrl.replace(/\/+$/, '').trim()])[0];
-      localStorage.setItem('SUPABASE_URL', urlClean);
-      localStorage.setItem('SUPABASE_ANON_KEY', newKey.trim());
-      window.location.reload();
-    });
+    dbStatusBadge.style.cursor = 'default';
+    dbStatusBadge.title = 'Estado de la conexión a la base de datos';
   }
 
   // Apertura de Modales
@@ -1425,50 +1412,47 @@ async function handleLogin(email, password) {
       }
     ];
 
+    let emailFound = false;
+
     // Verificar primero en cuentas locales autorizadas (instantáneo y sin bloqueo de red)
-    const localMatch = demoUsers.find(u => {
-      const matchUser = u.email === cleanEmail || (u.aliases && u.aliases.includes(cleanEmail));
-      const matchPass = (u.passwordHash === passwordHash || u.plainPass === cleanPassword);
-      return matchUser && matchPass;
+    const localUser = demoUsers.find(u => {
+      return u.email === cleanEmail || (u.aliases && u.aliases.includes(cleanEmail));
     });
 
-    if (localMatch) {
-      loggedUser = {
-        nombre: localMatch.nombre,
-        email: localMatch.email,
-        rol: localMatch.rol
-      };
+    if (localUser) {
+      emailFound = true;
+      const matchPass = (localUser.passwordHash === passwordHash || localUser.plainPass === cleanPassword);
+      if (matchPass) {
+        loggedUser = {
+          nombre: localUser.nombre,
+          email: localUser.email,
+          rol: localUser.rol
+        };
+      }
     }
 
     // 2. Si no es demo, intentar validar contra tabla usuarios en Supabase
     if (!loggedUser && supabaseClient) {
       try {
-        const { data: hashedData } = await supabaseClient
+        const { data: dbUser } = await supabaseClient
           .from('usuarios')
           .select('*')
           .eq('email', cleanEmail)
-          .eq('password', passwordHash)
           .maybeSingle();
 
-        if (hashedData) {
-          loggedUser = hashedData;
-        } else {
-          // Compatibilidad: si la BD tiene la clave en texto plano, validar y actualizar al hash SHA-256
-          const { data: plainData } = await supabaseClient
-            .from('usuarios')
-            .select('*')
-            .eq('email', cleanEmail)
-            .eq('password', cleanPassword)
-            .maybeSingle();
-
-          if (plainData) {
-            loggedUser = plainData;
-            try {
-              await supabaseClient
-                .from('usuarios')
-                .update({ password: passwordHash })
-                .eq('email', cleanEmail);
-            } catch (migErr) {}
+        if (dbUser) {
+          emailFound = true;
+          if (dbUser.password === passwordHash || dbUser.password === cleanPassword) {
+            loggedUser = dbUser;
+            // Compatibilidad: si la BD tiene la clave en texto plano, actualizar al hash SHA-256
+            if (dbUser.password === cleanPassword && cleanPassword !== passwordHash) {
+              try {
+                await supabaseClient
+                  .from('usuarios')
+                  .update({ password: passwordHash })
+                  .eq('email', cleanEmail);
+              } catch (migErr) {}
+            }
           }
         }
       } catch (dbErr) {
@@ -1477,14 +1461,22 @@ async function handleLogin(email, password) {
     }
 
     // 3. Si es un operario registrado en empleados, permitir acceso con contraseña general
-    if (!loggedUser && employees.length > 0) {
-      const empMatch = employees.find(e => e.nombre.toLowerCase() === cleanEmail);
-      if (empMatch && (cleanPassword === '123456' || cleanPassword === 'admin123')) {
-        loggedUser = {
-          nombre: empMatch.nombre,
-          email: `${cleanEmail.replace(/\s+/g, '')}@tooltracking.com`,
-          rol: `Operario (Cuadrilla ${empMatch.cuadrilla})`
-        };
+    if (!loggedUser && employees && employees.length > 0) {
+      const empMatch = employees.find(e => {
+        if (!e.nombre) return false;
+        const nombreLower = e.nombre.toLowerCase();
+        return nombreLower === cleanEmail || `${nombreLower.replace(/\s+/g, '')}@tooltracking.com` === cleanEmail;
+      });
+
+      if (empMatch) {
+        emailFound = true;
+        if (cleanPassword === '123456' || cleanPassword === 'admin123') {
+          loggedUser = {
+            nombre: empMatch.nombre,
+            email: `${cleanEmail.replace(/\s+/g, '')}@tooltracking.com`,
+            rol: `Operario (Cuadrilla ${empMatch.cuadrilla})`
+          };
+        }
       }
     }
 
@@ -1494,8 +1486,13 @@ async function handleLogin(email, password) {
       await loadData();
       await loadTraceability();
     } else {
-      showFieldError(document.getElementById('loginPassword'), 'loginPasswordError', 'Credenciales incorrectas. Usa jeime@tooltracking.com (123456) o admin@tooltracking.com (admin123)');
-      showToast('Acceso denegado. Verifica tu correo y contraseña.', 'error');
+      if (emailFound) {
+        showFieldError(document.getElementById('loginPassword'), 'loginPasswordError', 'Error en contraseña: La contraseña ingresada es incorrecta');
+        showToast('Error en contraseña. Verifica tu clave e intenta nuevamente.', 'error');
+      } else {
+        showFieldError(document.getElementById('loginEmail'), 'loginEmailError', 'Error en correo: El correo electrónico no está registrado');
+        showToast('Error en correo. El correo ingresado no existe en el sistema.', 'error');
+      }
     }
   } catch (err) {
     console.error('Error durante autenticación:', err);
