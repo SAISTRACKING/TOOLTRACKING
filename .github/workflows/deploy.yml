@@ -1,1 +1,50 @@
 
+name: Despliegue Seguro a GitHub Pages con Secrets
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Código
+        uses: actions/checkout@v4
+
+      - name: Inyectar Secretos de GitHub en env.js
+        run: |
+          cat << 'EOF' > env.js
+          window.__ENV__ = {
+            SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
+            SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}',
+            ENVIRONMENT: 'production',
+            SECURITY_HASH_ALGO: 'SHA-256',
+            APP_VERSION: '2.4.0'
+          };
+          EOF
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefactos
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Desplegar a GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
