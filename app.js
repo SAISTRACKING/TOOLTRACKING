@@ -546,8 +546,16 @@ window.openToolDetailModal = function(id) {
   document.getElementById('detailFieldName').textContent = tool.nombre;
   document.getElementById('detailFieldEmployee').textContent = tool.prestada_a || 'En Bodega General';
   document.getElementById('detailFieldCuadrilla').textContent = cuadrillaVal;
-  document.getElementById('detailFieldLoanDate').textContent = tool.fecha_salida ? formatDate(tool.fecha_salida) : 'No retirado';
-  document.getElementById('detailBarcodeText').textContent = `TOOL-${String(tool.id).padStart(4, '0')}-TRACE`;
+
+  // Fecha de salida: solo visible cuando la herramienta está prestada
+  const detailCardLoanDate = document.getElementById('detailCardLoanDate');
+  const detailFieldLoanDate = document.getElementById('detailFieldLoanDate');
+  if (detailCardLoanDate) {
+    detailCardLoanDate.style.display = isAvailable ? 'none' : 'flex';
+  }
+  if (detailFieldLoanDate) {
+    detailFieldLoanDate.textContent = (!isAvailable && tool.fecha_salida) ? formatDate(tool.fecha_salida) : '-';
+  }
 
   // Banner de Estado
   const statusDot = document.getElementById('detailStatusDot');
@@ -759,9 +767,11 @@ function renderToolsGrid(toolList) {
           <button class="btn btn-icon-sm btn-outline-warning" title="Editar herramienta" onclick="openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
             <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
           </button>
-          <button class="btn btn-icon-sm btn-outline-danger" title="Eliminar herramienta" onclick="openDeleteModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
-            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-          </button>
+          ${canDeleteTools() ? `
+            <button class="btn btn-icon-sm btn-outline-danger" title="Eliminar herramienta" onclick="openDeleteModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
@@ -784,7 +794,7 @@ function renderToolsTable(toolList) {
       cuadrillaText = emp ? `Cuadrilla ${emp.cuadrilla}` : 'Sin asignar';
     }
 
-    const formattedDate = tool.fecha_salida ? formatDate(tool.fecha_salida) : '-';
+    const formattedDate = (!isAvailable && tool.fecha_salida) ? formatDate(tool.fecha_salida) : '-';
 
     tr.innerHTML = `
       <td class="table-tool-id">#${tool.id}</td>
@@ -817,9 +827,11 @@ function renderToolsTable(toolList) {
           <button class="btn btn-icon-sm btn-outline-warning" title="Editar herramienta" onclick="openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
             <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
           </button>
-          <button class="btn btn-icon-sm btn-outline-danger" title="Eliminar herramienta" onclick="openDeleteModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
-            <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
-          </button>
+          ${canDeleteTools() ? `
+            <button class="btn btn-icon-sm btn-outline-danger" title="Eliminar herramienta" onclick="openDeleteModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
+              <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+            </button>
+          ` : ''}
         </div>
       </td>
     `;
@@ -1005,9 +1017,28 @@ formEditTool.addEventListener('submit', async (e) => {
 });
 
 // =========================================================
+// Permisos: Solo Administrador o Creador de la App puede eliminar
+// =========================================================
+function canDeleteTools() {
+  if (!currentUser) return false;
+  const rol = (currentUser.rol || '').toLowerCase();
+  const email = (currentUser.email || '').toLowerCase();
+  const nombre = (currentUser.nombre || '').toLowerCase();
+
+  const isAdmin = rol.includes('admin') || email.includes('admin') || nombre.includes('admin');
+  const isCreator = rol.includes('creador') || email.includes('jeime') || nombre.includes('jeime');
+
+  return isAdmin || isCreator;
+}
+
+// =========================================================
 // CRUD: ELIMINAR (Borrado con Modal de Confirmación)
 // =========================================================
 window.openDeleteModal = function(id, name) {
+  if (!canDeleteTools()) {
+    showToast('Acceso denegado: Solo el Administrador o Creador de la aplicación puede eliminar herramientas.', 'error');
+    return;
+  }
   toolPendingDelete = { id, name };
   deleteToolTargetText.textContent = `#${id} - ${name}`;
   modalDeleteTool.style.display = 'flex';
@@ -1015,6 +1046,13 @@ window.openDeleteModal = function(id, name) {
 
 btnConfirmDeleteTool.addEventListener('click', async () => {
   if (!toolPendingDelete) return;
+
+  if (!canDeleteTools()) {
+    showToast('Acceso denegado: Solo el Administrador o Creador de la aplicación puede eliminar herramientas.', 'error');
+    closeModals();
+    toolPendingDelete = null;
+    return;
+  }
 
   const { id, name } = toolPendingDelete;
 
@@ -1117,13 +1155,14 @@ window.returnTool = async function(id) {
       .update({
         estado: 'Disponible',
         prestada_a: null,
+        fecha_salida: null, // Se remueve la fecha de salida al entregar la herramienta
         fecha_devolucion: now
       })
       .eq('id', id);
 
     if (error) throw error;
 
-    // Registrar en Trazabilidad
+    // Registrar en Trazabilidad (se mantiene intacto en el historial)
     await registrarTrazabilidad({
       herramienta_id: id,
       herramienta_nombre: toolName,
@@ -1132,6 +1171,13 @@ window.returnTool = async function(id) {
       cuadrilla: emp ? emp.cuadrilla : null,
       observaciones: 'Herramienta devuelta e ingresada nuevamente a bodega'
     });
+
+    if (tool) {
+      tool.estado = 'Disponible';
+      tool.prestada_a = null;
+      tool.fecha_salida = null;
+      tool.fecha_devolucion = now;
+    }
 
     showToast(`Herramienta "${toolName}" recibida de vuelta en bodega`, 'success');
     await loadData();
@@ -1520,6 +1566,10 @@ function applyUserSession(user) {
     userProfileBadge.style.display = 'flex';
   }
 
+  if (typeof renderAllViews === 'function') {
+    renderAllViews();
+  }
+
   if (window.lucide) {
     window.lucide.createIcons();
   }
@@ -1542,5 +1592,8 @@ function handleLogout() {
   localStorage.removeItem('tooltracking_user');
   currentUser = null;
   showLoginScreen();
+  if (typeof renderAllViews === 'function') {
+    renderAllViews();
+  }
   showToast('Has cerrado sesión correctamente', 'info');
 }
