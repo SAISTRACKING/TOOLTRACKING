@@ -1,4 +1,3 @@
-
 name: Despliegue Seguro a GitHub Pages con Secrets
 
 on:
@@ -27,10 +26,21 @@ jobs:
 
       - name: Inyectar Secretos de GitHub en env.js
         run: |
-          cat << 'EOF' > env.js
+          url="${{ secrets.SUPABASE_URL }}"
+          key="${{ secrets.SUPABASE_ANON_KEY }}"
+          if [ -z "$url" ] || [ "$url" = "SUPABASE_ANON_KEY" ] || [ "$url" = "SUPABASE_URL" ]; then
+            url="https://iuavuxtstzpbwvmbrely.supabase.co"
+          fi
+          if [ -z "$key" ] || [ "$key" = "SUPABASE_ANON_KEY" ]; then
+            key="sb_publishable_YI0EmePfKteihRVmCvvhaw_bonybHbx"
+          fi
+          # Limpiar posibles saltos de línea
+          url=$(echo "$url" | tr -d '\r\n ' )
+          key=$(echo "$key" | tr -d '\r\n ' )
+          cat << EOF > env.js
           window.__ENV__ = {
-            SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
-            SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}',
+            SUPABASE_URL: '$url',
+            SUPABASE_ANON_KEY: '$key',
             ENVIRONMENT: 'production',
             SECURITY_HASH_ALGO: 'SHA-256',
             APP_VERSION: '2.4.0'
