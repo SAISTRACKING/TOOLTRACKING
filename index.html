@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
   <!-- Google Fonts: Inter y Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- Supabase JS Client -->
@@ -16,6 +19,7 @@
   <script src="env.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <!-- Encabezado Principal -->
   <header class="app-header">
@@ -115,7 +119,8 @@
     <section class="filter-section">
       <div class="search-box">
         <i data-lucide="search" class="search-icon"></i>
-        <input type="text" id="searchInput" placeholder="Buscar por código (#101), nombre o responsable..." autocomplete="off">
+        <input type="text" id="searchInput" placeholder="Buscar por código (#101), nombre o responsable..."
+          autocomplete="off">
         <button id="clearSearchBtn" class="clear-search-btn" title="Limpiar búsqueda" style="display: none;">
           <i data-lucide="x"></i>
         </button>
@@ -216,7 +221,7 @@
       </div>
       <form id="formLoan" novalidate>
         <input type="hidden" id="loanToolId">
-        
+
         <div class="form-group">
           <label for="loanEmployeeSelect">Selecciona el Operario Responsable <span class="required">*</span></label>
           <select id="loanEmployeeSelect" class="form-control" required>
@@ -255,7 +260,8 @@
         </div>
         <div class="form-group">
           <label for="newToolName">Nombre de la Herramienta <span class="required">*</span></label>
-          <input type="text" id="newToolName" class="form-control" placeholder="Ej: Rotomartillo Hilti TE 2000, Llave Torx 8mm" required>
+          <input type="text" id="newToolName" class="form-control"
+            placeholder="Ej: Rotomartillo Hilti TE 2000, Llave Torx 8mm" required>
           <div id="newToolNameError" class="invalid-feedback"></div>
           <small class="form-help">Mínimo 3 caracteres descriptivos.</small>
         </div>
@@ -343,7 +349,8 @@
       <form id="formAddEmployee" novalidate>
         <div class="form-group">
           <label for="newEmployeeName">Nombre Completo <span class="required">*</span></label>
-          <input type="text" id="newEmployeeName" class="form-control" placeholder="Ej: Jeime Jiménez, Rhonis Julio" required>
+          <input type="text" id="newEmployeeName" class="form-control" placeholder="Ej: Jeime Jiménez, Rhonis Julio"
+            required>
           <div id="newEmployeeNameError" class="invalid-feedback"></div>
           <small class="form-help">Mínimo 3 caracteres.</small>
         </div>
@@ -360,6 +367,34 @@
           <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
           <button type="submit" id="btnSubmitAddEmployee" class="btn btn-primary">
             <i data-lucide="user-check"></i> Registrar Operario
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Registrar Nueva Cuadrilla -->
+  <div id="modalAddCuadrilla" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Agregar Cuadrilla</h3>
+          <p class="modal-subtitle">Habilitar un nuevo grupo de trabajo</p>
+        </div>
+        <button class="modal-close" data-close-modal><i data-lucide="x"></i></button>
+      </div>
+      <form id="formAddCuadrilla" novalidate>
+        <div class="form-group">
+          <label for="newCuadrillaNumber">Número de Cuadrilla <span class="required">*</span></label>
+          <input type="number" id="newCuadrillaNumber" class="form-control" min="1" step="1" placeholder="Ej: 5"
+            required>
+          <div id="newCuadrillaNumberError" class="invalid-feedback"></div>
+          <small class="form-help">Ingrese un número entero positivo no asignado previamente.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+          <button type="submit" id="btnSubmitAddCuadrilla" class="btn btn-primary">
+            <i data-lucide="plus"></i> Crear Cuadrilla
           </button>
         </div>
       </form>
@@ -460,7 +495,8 @@
       <div class="trace-filter-bar">
         <div class="trace-search-box">
           <i data-lucide="search"></i>
-          <input type="text" id="traceSearchInput" placeholder="Buscar por herramienta, operario, cuadrilla o supervisor...">
+          <input type="text" id="traceSearchInput"
+            placeholder="Buscar por herramienta, operario, cuadrilla o supervisor...">
         </div>
         <div class="trace-filter-actions">
           <select id="traceTypeFilter" class="select-control">
@@ -471,7 +507,8 @@
             <option value="MODIFICACION">✏️ Modificaciones</option>
             <option value="ELIMINACION">🗑️ Eliminaciones</option>
           </select>
-          <button id="btnExportTraceability" class="btn btn-secondary btn-sm" title="Descargar registro de trazabilidad en CSV">
+          <button id="btnExportTraceability" class="btn btn-secondary btn-sm"
+            title="Descargar registro de trazabilidad en CSV">
             <i data-lucide="download"></i>
             <span>Exportar CSV</span>
           </button>
@@ -529,7 +566,8 @@
           <label for="loginEmail">Correo Electrónico <span class="required">*</span></label>
           <div class="input-with-icon">
             <i data-lucide="mail"></i>
-            <input type="email" id="loginEmail" class="form-control" placeholder="ejemplo@tooltracking.com" required autocomplete="email">
+            <input type="email" id="loginEmail" class="form-control" placeholder="ejemplo@tooltracking.com" required
+              autocomplete="email">
           </div>
           <div id="loginEmailError" class="invalid-feedback"></div>
         </div>
@@ -538,7 +576,8 @@
           <label for="loginPassword">Contraseña <span class="required">*</span></label>
           <div class="input-with-icon">
             <i data-lucide="lock"></i>
-            <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+            <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required
+              autocomplete="current-password">
           </div>
           <div id="loginPasswordError" class="invalid-feedback"></div>
         </div>
@@ -556,4 +595,5 @@
 
   <script src="app.js"></script>
 </body>
+
 </html>
