@@ -11,8 +11,8 @@ const ENV = (typeof window !== 'undefined' && window.__ENV__) ? window.__ENV__ :
 const DEFAULT_URL = 'https://iuavuxtstzpbwvmbrely.supabase.co';
 const DEFAULT_KEY = 'sb_publishable_YI0EmePfKteihRVmCvvhaw_bonybHbx';
 
-let rawUrl = (ENV.SUPABASE_URL || localStorage.getItem('SUPABASE_URL') || DEFAULT_URL).trim();
-let rawKey = (ENV.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY') || DEFAULT_KEY).trim();
+let rawUrl = DEFAULT_URL;
+let rawKey = DEFAULT_KEY;
 
 // Si por error se intercambiaron
 if (rawKey.startsWith('http') && !rawUrl.startsWith('http')) {
@@ -81,6 +81,10 @@ const modalAddTool = document.getElementById('modalAddTool');
 const modalEditTool = document.getElementById('modalEditTool');
 const modalDeleteTool = document.getElementById('modalDeleteTool');
 const modalAddEmployee = document.getElementById('modalAddEmployee');
+const modalAddCuadrilla = document.getElementById('modalAddCuadrilla');
+const formAddCuadrilla = document.getElementById('formAddCuadrilla');
+const btnOpenAddCuadrilla = document.getElementById('btnOpenAddCuadrilla');
+const newCuadrillaNumber = document.getElementById('newCuadrillaNumber');
 
 // Nuevos Modales: Vista de Detalles y Trazabilidad
 const modalToolDetails = document.getElementById('modalToolDetails');
@@ -262,6 +266,7 @@ async function loadData() {
     setConnectionStatus('connected', 'En Línea (Supabase)');
     updateStats();
     populateEmployeeSelect();
+    populateCuadrillaSelects();
     renderAllViews();
   } catch (err) {
     console.error('Error al conectar con Supabase:', err);
@@ -604,9 +609,11 @@ window.openToolDetailModal = function(id) {
   // Acciones en el pie del modal de detalles
   const footerActions = document.getElementById('detailFooterActions');
   footerActions.innerHTML = `
-    <button class="btn btn-secondary btn-sm" onclick="closeModals(); openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
-      <i data-lucide="pencil"></i> Editar
-    </button>
+    ${canEditTools() ? `
+      <button class="btn btn-secondary btn-sm" onclick="closeModals(); openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
+        <i data-lucide="pencil"></i> Editar
+      </button>
+    ` : ''}
     ${isAvailable ? `
       <button class="btn btn-primary btn-sm" onclick="closeModals(); openLoanModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
         <i data-lucide="arrow-up-right"></i> Prestar Herramienta
@@ -764,9 +771,11 @@ function renderToolsGrid(toolList) {
           <button class="btn btn-icon-sm btn-outline-info" title="Ver ficha técnica y detalles" onclick="openToolDetailModal(${tool.id})">
             <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
           </button>
-          <button class="btn btn-icon-sm btn-outline-warning" title="Editar herramienta" onclick="openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
-            <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
-          </button>
+          ${canEditTools() ? `
+            <button class="btn btn-icon-sm btn-outline-warning" title="Editar herramienta" onclick="openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
+              <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+            </button>
+          ` : ''}
           ${canDeleteTools() ? `
             <button class="btn btn-icon-sm btn-outline-danger" title="Eliminar herramienta" onclick="openDeleteModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
               <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
@@ -824,9 +833,11 @@ function renderToolsTable(toolList) {
           <button class="btn btn-icon-sm btn-outline-info" title="Ver ficha técnica" onclick="openToolDetailModal(${tool.id})">
             <i data-lucide="eye" style="width: 13px; height: 13px;"></i>
           </button>
-          <button class="btn btn-icon-sm btn-outline-warning" title="Editar herramienta" onclick="openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
-            <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
-          </button>
+          ${canEditTools() ? `
+            <button class="btn btn-icon-sm btn-outline-warning" title="Editar herramienta" onclick="openEditToolModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
+              <i data-lucide="pencil" style="width: 13px; height: 13px;"></i>
+            </button>
+          ` : ''}
           ${canDeleteTools() ? `
             <button class="btn btn-icon-sm btn-outline-danger" title="Eliminar herramienta" onclick="openDeleteModal(${tool.id}, '${escapeQuote(tool.nombre)}')">
               <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
@@ -922,6 +933,77 @@ formAddTool.addEventListener('submit', async (e) => {
   }
 });
 
+// FunciÃ³n para obtener y poblar cuadrillas dinÃ¡micas
+function populateCuadrillaSelects() {
+  const existingCuadrillas = new Set([1, 2, 3, 4]);
+  employees.forEach(emp => {
+    if (emp.cuadrilla) existingCuadrillas.add(parseInt(emp.cuadrilla, 10));
+  });
+
+  const customCuadrillas = JSON.parse(localStorage.getItem('tooltracking_custom_cuadrillas') || '[]');
+  customCuadrillas.forEach(c => existingCuadrillas.add(parseInt(c, 10)));
+
+  const sorted = Array.from(existingCuadrillas).sort((a, b) => a - b);
+
+  // Actualizar filtro de cuadrillas
+  if (cuadrillaFilter) {
+    const curVal = cuadrillaFilter.value;
+    cuadrillaFilter.innerHTML = '<option value="all">Todas las cuadrillas</option>';
+    sorted.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.toString();
+      opt.textContent = `Cuadrilla ${c}`;
+      cuadrillaFilter.appendChild(opt);
+    });
+    if (sorted.map(String).includes(curVal)) cuadrillaFilter.value = curVal;
+  }
+
+  // Actualizar select de nuevo empleado
+  const newEmpCuadrillaSelect = document.getElementById('newEmployeeCuadrilla');
+  if (newEmpCuadrillaSelect) {
+    const curVal = newEmpCuadrillaSelect.value;
+    newEmpCuadrillaSelect.innerHTML = '';
+    sorted.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.toString();
+      opt.textContent = `Cuadrilla ${c}`;
+      newEmpCuadrillaSelect.appendChild(opt);
+    });
+    if (sorted.map(String).includes(curVal)) newEmpCuadrillaSelect.value = curVal;
+  }
+}
+
+// EnvÃ­o del formulario Crear Cuadrilla
+if (formAddCuadrilla) {
+  formAddCuadrilla.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearInputErrors(formAddCuadrilla);
+
+    if (!canManageTools()) {
+      showToast('Acceso denegado: Solo el Creador o Administrador pueden crear cuadrillas.', 'error');
+      closeModals();
+      return;
+    }
+
+    const numVal = parseInt(newCuadrillaNumber.value, 10);
+    if (isNaN(numVal) || numVal < 1) {
+      showFieldError(newCuadrillaNumber, 'newCuadrillaNumberError', 'Ingresa un nÃºmero de cuadrilla vÃ¡lido y positivo.');
+      return;
+    }
+
+    const customCuadrillas = JSON.parse(localStorage.getItem('tooltracking_custom_cuadrillas') || '[]');
+    if (!customCuadrillas.includes(numVal)) {
+      customCuadrillas.push(numVal);
+      localStorage.setItem('tooltracking_custom_cuadrillas', JSON.stringify(customCuadrillas));
+    }
+
+    populateCuadrillaSelects();
+    showToast(`Cuadrilla ${numVal} habilitada exitosamente`, 'success');
+    formAddCuadrilla.reset();
+    closeModals();
+  });
+}
+
 // 2. Crear Nuevo Empleado
 formAddEmployee.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -970,6 +1052,10 @@ formAddEmployee.addEventListener('submit', async (e) => {
 // CRUD: EDITAR (Modificar Registro Existente)
 // =========================================================
 window.openEditToolModal = function(id, name) {
+  if (!canEditTools()) {
+    showToast('Acceso denegado: El rol Supervisor no tiene permisos para editar herramientas.', 'error');
+    return;
+  }
   clearInputErrors(formEditTool);
   editToolId.value = id;
   editToolName.value = name;
@@ -1019,7 +1105,7 @@ formEditTool.addEventListener('submit', async (e) => {
 // =========================================================
 // Permisos: Solo Administrador o Creador de la App puede eliminar
 // =========================================================
-function canDeleteTools() {
+function canManageTools() {
   if (!currentUser) return false;
   const rol = (currentUser.rol || '').toLowerCase();
   const email = (currentUser.email || '').toLowerCase();
@@ -1029,6 +1115,14 @@ function canDeleteTools() {
   const isCreator = rol.includes('creador') || email.includes('jeime') || nombre.includes('jeime');
 
   return isAdmin || isCreator;
+}
+
+function canDeleteTools() {
+  return canManageTools();
+}
+
+function canEditTools() {
+  return canManageTools();
 }
 
 // =========================================================
@@ -1267,6 +1361,19 @@ function setupEventListeners() {
     modalAddTool.style.display = 'flex';
   });
 
+  if (btnOpenAddCuadrilla) {
+    btnOpenAddCuadrilla.addEventListener('click', () => {
+      if (!canManageTools()) {
+        showToast('Acceso restringido: Solo el Creador y Administrador pueden agregar cuadrillas.', 'error');
+        return;
+      }
+      clearInputErrors(formAddCuadrilla);
+      formAddCuadrilla.reset();
+      modalAddCuadrilla.style.display = 'flex';
+      newCuadrillaNumber.focus();
+    });
+  }
+
   document.getElementById('btnOpenAddEmployee').addEventListener('click', () => {
     clearInputErrors(formAddEmployee);
     formAddEmployee.reset();
@@ -1316,6 +1423,7 @@ function closeModals() {
   modalEditTool.style.display = 'none';
   modalDeleteTool.style.display = 'none';
   modalAddEmployee.style.display = 'none';
+  if (modalAddCuadrilla) modalAddCuadrilla.style.display = 'none';
   if (modalToolDetails) modalToolDetails.style.display = 'none';
   if (modalTraceability) modalTraceability.style.display = 'none';
   toolPendingDelete = null;
@@ -1438,7 +1546,7 @@ async function handleLogin(email, password) {
         aliases: ['jeime', 'jeime jimenez', 'jeime@tooltracking.com'],
         plainPass: '123456',
         passwordHash: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
-        rol: 'Supervisor de Bodega'
+        rol: 'Creador de la AplicaciÃ³n'
       },
       {
         nombre: 'Administrador General',
@@ -1564,6 +1672,11 @@ function applyUserSession(user) {
     headerUserName.textContent = user.nombre || 'Usuario';
     headerUserRole.textContent = user.rol || 'Operador';
     userProfileBadge.style.display = 'flex';
+  }
+
+  // Mostrar el botÃ³n de agregar cuadrilla solo a Creador y Administrador
+  if (btnOpenAddCuadrilla) {
+    btnOpenAddCuadrilla.style.display = canManageTools() ? 'inline-flex' : 'none';
   }
 
   if (typeof renderAllViews === 'function') {
