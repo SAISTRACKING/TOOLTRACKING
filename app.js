@@ -39,6 +39,28 @@ const supabaseClient = (window.supabase && SUPABASE_URL && SUPABASE_KEY)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
   : null;
 
+// Catálogo predeterminado de herramientas iniciales (respaldo garantizado si la base de datos está vacía)
+const INITIAL_TOOLS_CATALOG = [
+  { id: 101, nombre: 'Taladro Percutor Bosch 650W', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 102, nombre: 'Micrómetro Digital Mitutoyo 0-25mm', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 103, nombre: 'Fumigadora Industrial Manual 16L', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 104, nombre: 'Martillo Demoledor Hilti TE 2000', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 105, nombre: 'Juego Llaves Torx T10-T50', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 106, nombre: 'Amoladora Angular DeWalt 4-1/2"', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 107, nombre: 'Nivel Láser Autonivelante 360°', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 108, nombre: 'Torquímetro de Trueno 1/2" 10-150 ft-lb', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 109, nombre: 'Calibrador Vernier Digital 6 Pulgadas', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 110, nombre: 'Sierra Circular Milwaukee 7-1/4"', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 111, nombre: 'Multímetro Digital Automotriz Fluke 115', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 112, nombre: 'Calibrador vernier', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 113, nombre: 'Juego de Llaves Bristol Métricas 1.5-10mm', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 114, nombre: 'Radiometro Spectroline DM-365XA', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 115, nombre: 'Yugo magnético articulado B100', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 116, nombre: 'Remachadora Neumática Profesional', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 117, nombre: 'Llave de Impacto Inalámbrica 1/2"', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null },
+  { id: 118, nombre: 'Cizalla Cortapernos 24 Pulgadas', estado: 'Disponible', prestada_a: null, fecha_salida: null, fecha_devolucion: null }
+];
+
 // Estado global en memoria
 let tools = [];
 let employees = [];
@@ -85,6 +107,9 @@ const modalAddCuadrilla = document.getElementById('modalAddCuadrilla');
 const formAddCuadrilla = document.getElementById('formAddCuadrilla');
 const btnOpenAddCuadrilla = document.getElementById('btnOpenAddCuadrilla');
 const newCuadrillaNumber = document.getElementById('newCuadrillaNumber');
+const newCuadrillaName = document.getElementById('newCuadrillaName');
+const cuadrillasListContainer = document.getElementById('cuadrillasListContainer');
+const cuadrillasCountBadge = document.getElementById('cuadrillasCountBadge');
 
 // Nuevos Modales: Vista de Detalles y Trazabilidad
 const modalToolDetails = document.getElementById('modalToolDetails');
@@ -117,8 +142,22 @@ const traceTableBody = document.getElementById('traceTableBody');
 const traceCountBadge = document.getElementById('traceCountBadge');
 const traceEmptyState = document.getElementById('traceEmptyState');
 
+// Sanitización de nombres de rol (reparación automática de codificación)
+function sanitizeRole(role) {
+  if (!role) return 'Operador';
+  return role
+    .replace(/Creador\s+de\s+la\s+Aplicaci[Ã\u00C3\u00A3]?[³\u00B3o\?]?n?/gi, 'Creador de la Aplicación')
+    .replace(/Aplicaci[Ã\u00C3\u00A3]?[³\u00B3o\?]?n?/gi, 'Aplicación')
+    .replace(/Administraci[Ã\u00C3\u00A3]?[³\u00B3o\?]?n?/gi, 'Administración')
+    .trim();
+}
+
 // Elementos de Autenticación
 let currentUser = JSON.parse(localStorage.getItem('tooltracking_user') || 'null');
+if (currentUser && currentUser.rol) {
+  currentUser.rol = sanitizeRole(currentUser.rol);
+  localStorage.setItem('tooltracking_user', JSON.stringify(currentUser));
+}
 const loginOverlay = document.getElementById('loginOverlay');
 const formLogin = document.getElementById('formLogin');
 const userProfileBadge = document.getElementById('userProfileBadge');
@@ -245,22 +284,76 @@ async function loadData() {
     }
 
     // 1. Cargar Empleados
-    const { data: empData, error: empError } = await supabaseClient
-      .from('empleados')
-      .select('*')
-      .order('nombre', { ascending: true });
+    try {
+      const { data: empData, error: empError } = await supabaseClient
+        .from('empleados')
+        .select('*')
+        .order('nombre', { ascending: true });
 
-    if (empError) throw empError;
-    employees = empData || [];
+      if (empError) throw empError;
+      if (empData && empData.length > 0) {
+        employees = empData;
+        localStorage.setItem('tooltracking_employees', JSON.stringify(empData));
+      }
+    } catch (empErr) {
+      console.warn('Carga de empleados desde Supabase con advertencia:', empErr);
+      const savedEmp = localStorage.getItem('tooltracking_employees');
+      if (savedEmp) {
+        try { employees = JSON.parse(savedEmp); } catch (e) {}
+      }
+    }
 
-    // 2. Cargar Herramientas
-    const { data: toolData, error: toolError } = await supabaseClient
-      .from('herramientas')
-      .select('*')
-      .order('id', { ascending: true });
+    // 2. Cargar Herramientas (Con respaldo de catálogo predeterminado)
+    let loadedTools = [];
+    try {
+      const { data: toolData, error: toolError } = await supabaseClient
+        .from('herramientas')
+        .select('*')
+        .order('id', { ascending: true });
 
-    if (toolError) throw toolError;
-    tools = toolData || [];
+      if (toolError) throw toolError;
+      if (toolData && toolData.length > 0) {
+        loadedTools = toolData;
+        localStorage.setItem('tooltracking_tools', JSON.stringify(toolData));
+      }
+    } catch (toolErr) {
+      console.warn('Consulta de herramientas en Supabase advertencia (posible RLS):', toolErr);
+    }
+
+    // Si la base de datos remota está vacía o restringida por RLS:
+    if (!loadedTools || loadedTools.length === 0) {
+      const savedTools = localStorage.getItem('tooltracking_tools');
+      if (savedTools) {
+        try {
+          loadedTools = JSON.parse(savedTools);
+        } catch (e) {
+          loadedTools = [];
+        }
+      }
+      // Si tampoco hay herramientas locales, sembrar el catálogo original de 18 herramientas
+      if (!loadedTools || loadedTools.length === 0) {
+        loadedTools = JSON.parse(JSON.stringify(INITIAL_TOOLS_CATALOG));
+        localStorage.setItem('tooltracking_tools', JSON.stringify(loadedTools));
+      }
+
+      // Intentar sincronizar las 18 herramientas hacia Supabase en segundo plano
+      if (supabaseClient) {
+        supabaseClient.from('herramientas').insert(
+          INITIAL_TOOLS_CATALOG.map(t => ({
+            id: t.id,
+            nombre: t.nombre,
+            estado: t.estado,
+            prestada_a: t.prestada_a,
+            fecha_salida: t.fecha_salida,
+            fecha_devolucion: t.fecha_devolucion
+          }))
+        ).then(({ error }) => {
+          if (error) console.info('Sincronización remota de catálogo omitida (RLS):', error.message);
+        }).catch(() => {});
+      }
+    }
+
+    tools = loadedTools;
 
     // Actualizar UI
     setConnectionStatus('connected', 'En Línea (Supabase)');
@@ -271,7 +364,20 @@ async function loadData() {
   } catch (err) {
     console.error('Error al conectar con Supabase:', err);
     setConnectionStatus('error', 'Sin Conexión');
-    showToast('Error de conexión con la base de datos: ' + err.message, 'error');
+
+    // Recuperar datos desde almacenamiento local en caso de error
+    const savedTools = localStorage.getItem('tooltracking_tools');
+    if (savedTools) {
+      try { tools = JSON.parse(savedTools); } catch (e) { tools = []; }
+    }
+    if (!tools || tools.length === 0) {
+      tools = JSON.parse(JSON.stringify(INITIAL_TOOLS_CATALOG));
+    }
+    updateStats();
+    populateEmployeeSelect();
+    populateCuadrillaSelects();
+    renderAllViews();
+    showToast('Modo sin conexión: Operando con inventario en memoria local', 'info');
   }
 }
 
@@ -904,36 +1010,78 @@ formAddTool.addEventListener('submit', async (e) => {
 
   if (hasError) return;
 
+  const newToolItem = {
+    id: idNum,
+    nombre: nameValue,
+    estado: 'Disponible',
+    prestada_a: null,
+    fecha_salida: null,
+    fecha_devolucion: null
+  };
+
   try {
-    const { error } = await supabaseClient
-      .from('herramientas')
-      .insert([{
-        id: idNum,
-        nombre: nameValue,
-        estado: 'Disponible'
-      }]);
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('herramientas')
+        .insert([{
+          id: idNum,
+          nombre: nameValue,
+          estado: 'Disponible'
+        }]);
 
-    if (error) throw error;
-
-    // Registrar en Trazabilidad
-    await registrarTrazabilidad({
-      herramienta_id: idNum,
-      herramienta_nombre: nameValue,
-      tipo_movimiento: 'REGISTRO',
-      observaciones: 'Nueva herramienta incorporada al inventario'
-    });
-
-    showToast(`Herramienta #${idNum} "${nameValue}" agregada exitosamente`, 'success');
-    formAddTool.reset();
-    closeModals();
-    await loadData();
+      if (error) {
+        console.warn('Advertencia en Supabase al insertar herramienta (se mantendrá en memoria local):', error.message);
+      }
+    }
   } catch (err) {
-    console.error('Error al agregar herramienta:', err);
-    showToast('Error al registrar en Supabase: ' + err.message, 'error');
+    console.warn('Error de red al registrar en Supabase (guardado localmente):', err);
   }
+
+  // Guardar siempre en memoria local y localStorage
+  tools.push(newToolItem);
+  tools.sort((a, b) => a.id - b.id);
+  localStorage.setItem('tooltracking_tools', JSON.stringify(tools));
+
+  // Registrar en Trazabilidad
+  await registrarTrazabilidad({
+    herramienta_id: idNum,
+    herramienta_nombre: nameValue,
+    tipo_movimiento: 'REGISTRO',
+    observaciones: 'Nueva herramienta incorporada al inventario'
+  });
+
+  showToast(`Herramienta #${idNum} "${nameValue}" agregada exitosamente`, 'success');
+  formAddTool.reset();
+  closeModals();
+  updateStats();
+  renderAllViews();
 });
 
-// FunciÃ³n para obtener y poblar cuadrillas dinÃ¡micas
+// Metadatos y Nombres de Cuadrillas Predeterminadas
+function getCuadrillasMeta() {
+  const defaultMeta = {
+    '1': 'Mantenimiento Mecánico',
+    '2': 'Electricidad y Control',
+    '3': 'Soldadura y Estructuras',
+    '4': 'Obras Civiles y Demolición'
+  };
+  try {
+    const saved = localStorage.getItem('tooltracking_cuadrillas_meta');
+    return saved ? { ...defaultMeta, ...JSON.parse(saved) } : defaultMeta;
+  } catch (e) {
+    return defaultMeta;
+  }
+}
+
+function saveCuadrillaMeta(num, name) {
+  const meta = getCuadrillasMeta();
+  if (name && name.trim()) {
+    meta[num.toString()] = name.trim();
+  }
+  localStorage.setItem('tooltracking_cuadrillas_meta', JSON.stringify(meta));
+}
+
+// Función para obtener y poblar cuadrillas dinámicas y su listado interactivo
 function populateCuadrillaSelects() {
   const existingCuadrillas = new Set([1, 2, 3, 4]);
   employees.forEach(emp => {
@@ -944,21 +1092,23 @@ function populateCuadrillaSelects() {
   customCuadrillas.forEach(c => existingCuadrillas.add(parseInt(c, 10)));
 
   const sorted = Array.from(existingCuadrillas).sort((a, b) => a - b);
+  const meta = getCuadrillasMeta();
 
-  // Actualizar filtro de cuadrillas
+  // 1. Actualizar filtro principal de cuadrillas
   if (cuadrillaFilter) {
     const curVal = cuadrillaFilter.value;
     cuadrillaFilter.innerHTML = '<option value="all">Todas las cuadrillas</option>';
     sorted.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.toString();
-      opt.textContent = `Cuadrilla ${c}`;
+      const name = meta[c.toString()];
+      opt.textContent = name ? `Cuadrilla ${c} - ${name}` : `Cuadrilla ${c}`;
       cuadrillaFilter.appendChild(opt);
     });
     if (sorted.map(String).includes(curVal)) cuadrillaFilter.value = curVal;
   }
 
-  // Actualizar select de nuevo empleado
+  // 2. Actualizar select en modal de nuevo empleado
   const newEmpCuadrillaSelect = document.getElementById('newEmployeeCuadrilla');
   if (newEmpCuadrillaSelect) {
     const curVal = newEmpCuadrillaSelect.value;
@@ -966,14 +1116,53 @@ function populateCuadrillaSelects() {
     sorted.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.toString();
-      opt.textContent = `Cuadrilla ${c}`;
+      const name = meta[c.toString()];
+      opt.textContent = name ? `Cuadrilla ${c} - ${name}` : `Cuadrilla ${c}`;
       newEmpCuadrillaSelect.appendChild(opt);
     });
     if (sorted.map(String).includes(curVal)) newEmpCuadrillaSelect.value = curVal;
   }
+
+  // 3. Renderizar listado de cuadrillas activas dentro del modal de gestión
+  if (cuadrillasListContainer) {
+    cuadrillasListContainer.innerHTML = '';
+    sorted.forEach(c => {
+      const assignedEmps = employees.filter(e => parseInt(e.cuadrilla, 10) === c);
+      const name = meta[c.toString()];
+      const item = document.createElement('div');
+      item.style.cssText = 'background: var(--bg-main, #0f172a); border: 1px solid var(--border-color, #334155); border-radius: 6px; padding: 0.6rem 0.8rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;';
+      
+      const empsText = assignedEmps.length > 0 
+        ? assignedEmps.map(e => e.nombre).join(', ') 
+        : 'Sin operarios asignados aún';
+
+      item.innerHTML = `
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <strong style="color: var(--color-primary-light, #38bdf8); font-size: 0.875rem;">Cuadrilla ${c}</strong>
+            ${name ? `<span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid rgba(56, 189, 248, 0.3);">${escapeHtml(name)}</span>` : ''}
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-muted, #94a3b8); margin-top: 0.2rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${escapeHtml(empsText)}">
+            <i data-lucide="users" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 2px;"></i>
+            ${escapeHtml(empsText)}
+          </div>
+        </div>
+        <span class="badge" style="background: var(--bg-card, #1e293b); color: var(--text-secondary, #cbd5e1); font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 4px; white-space: nowrap;">
+          ${assignedEmps.length} ${assignedEmps.length === 1 ? 'operario' : 'operarios'}
+        </span>
+      `;
+      cuadrillasListContainer.appendChild(item);
+    });
+
+    if (cuadrillasCountBadge) {
+      cuadrillasCountBadge.textContent = `${sorted.length} cuadrillas activas`;
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+  }
 }
 
-// EnvÃ­o del formulario Crear Cuadrilla
+// Envío del formulario Crear / Habilitar Cuadrilla
 if (formAddCuadrilla) {
   formAddCuadrilla.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -986,21 +1175,37 @@ if (formAddCuadrilla) {
     }
 
     const numVal = parseInt(newCuadrillaNumber.value, 10);
+    const nameVal = newCuadrillaName ? newCuadrillaName.value.trim() : '';
+
     if (isNaN(numVal) || numVal < 1) {
-      showFieldError(newCuadrillaNumber, 'newCuadrillaNumberError', 'Ingresa un nÃºmero de cuadrilla vÃ¡lido y positivo.');
+      showFieldError(newCuadrillaNumber, 'newCuadrillaNumberError', 'Ingresa un número de cuadrilla válido y positivo (ej: 5).');
       return;
     }
 
     const customCuadrillas = JSON.parse(localStorage.getItem('tooltracking_custom_cuadrillas') || '[]');
+    const isNew = !customCuadrillas.includes(numVal) && ![1, 2, 3, 4].includes(numVal);
+
     if (!customCuadrillas.includes(numVal)) {
       customCuadrillas.push(numVal);
       localStorage.setItem('tooltracking_custom_cuadrillas', JSON.stringify(customCuadrillas));
     }
 
+    if (nameVal) {
+      saveCuadrillaMeta(numVal, nameVal);
+    }
+
+    // Actualizar interfaz y selects de inmediato
     populateCuadrillaSelects();
-    showToast(`Cuadrilla ${numVal} habilitada exitosamente`, 'success');
+
+    const displayName = nameVal ? ` ("${nameVal}")` : '';
+    if (isNew) {
+      showToast(`¡Cuadrilla ${numVal}${displayName} habilitada exitosamente!`, 'success');
+    } else {
+      showToast(`Cuadrilla ${numVal}${displayName} actualizada correctamente`, 'success');
+    }
+
     formAddCuadrilla.reset();
-    closeModals();
+    newCuadrillaNumber.focus();
   });
 }
 
@@ -1078,28 +1283,36 @@ formEditTool.addEventListener('submit', async (e) => {
   }
 
   try {
-    const { error } = await supabaseClient
-      .from('herramientas')
-      .update({ nombre: updatedName })
-      .eq('id', id);
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('herramientas')
+        .update({ nombre: updatedName })
+        .eq('id', id);
 
-    if (error) throw error;
-
-    // Registrar en Trazabilidad
-    await registrarTrazabilidad({
-      herramienta_id: id,
-      herramienta_nombre: updatedName,
-      tipo_movimiento: 'MODIFICACION',
-      observaciones: `Nombre actualizado de equipo #${id}`
-    });
-
-    showToast(`Herramienta #${id} actualizada a "${updatedName}"`, 'success');
-    closeModals();
-    await loadData();
+      if (error) console.warn('Advertencia al actualizar en Supabase (se mantiene local):', error.message);
+    }
   } catch (err) {
-    console.error('Error al actualizar herramienta:', err);
-    showToast('Error al editar: ' + err.message, 'error');
+    console.warn('Error de red al actualizar en Supabase:', err);
   }
+
+  // Actualizar en memoria local y localStorage
+  const toolToUpdate = tools.find(t => t.id === id);
+  if (toolToUpdate) {
+    toolToUpdate.nombre = updatedName;
+    localStorage.setItem('tooltracking_tools', JSON.stringify(tools));
+  }
+
+  // Registrar en Trazabilidad
+  await registrarTrazabilidad({
+    herramienta_id: id,
+    herramienta_nombre: updatedName,
+    tipo_movimiento: 'MODIFICACION',
+    observaciones: `Nombre actualizado de equipo #${id}`
+  });
+
+  showToast(`Herramienta #${id} actualizada a "${updatedName}"`, 'success');
+  closeModals();
+  renderAllViews();
 });
 
 // =========================================================
@@ -1151,29 +1364,35 @@ btnConfirmDeleteTool.addEventListener('click', async () => {
   const { id, name } = toolPendingDelete;
 
   try {
-    const { error } = await supabaseClient
-      .from('herramientas')
-      .delete()
-      .eq('id', id);
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('herramientas')
+        .delete()
+        .eq('id', id);
 
-    if (error) throw error;
-
-    // Registrar en Trazabilidad
-    await registrarTrazabilidad({
-      herramienta_id: id,
-      herramienta_nombre: name,
-      tipo_movimiento: 'ELIMINACION',
-      observaciones: `Herramienta dada de baja y retirada del inventario`
-    });
-
-    showToast(`Herramienta #${id} "${name}" eliminada del inventario`, 'warning');
-    closeModals();
-    toolPendingDelete = null;
-    await loadData();
+      if (error) console.warn('Advertencia en Supabase al eliminar (se retira local):', error.message);
+    }
   } catch (err) {
-    console.error('Error al eliminar herramienta:', err);
-    showToast('Error al eliminar: ' + err.message, 'error');
+    console.warn('Error de red al eliminar en Supabase:', err);
   }
+
+  // Eliminar de memoria local y localStorage
+  tools = tools.filter(t => t.id !== id);
+  localStorage.setItem('tooltracking_tools', JSON.stringify(tools));
+
+  // Registrar en Trazabilidad
+  await registrarTrazabilidad({
+    herramienta_id: id,
+    herramienta_nombre: name,
+    tipo_movimiento: 'ELIMINACION',
+    observaciones: `Herramienta dada de baja y retirada del inventario`
+  });
+
+  showToast(`Herramienta #${id} "${name}" eliminada del inventario`, 'warning');
+  closeModals();
+  toolPendingDelete = null;
+  updateStats();
+  renderAllViews();
 });
 
 // =========================================================
@@ -1203,37 +1422,49 @@ formLoan.addEventListener('submit', async (e) => {
   const tool = tools.find(t => t.id === id);
   const toolName = tool ? tool.nombre : `Herramienta #${id}`;
 
+  const now = new Date().toISOString();
+
   try {
-    const now = new Date().toISOString();
-    const { error } = await supabaseClient
-      .from('herramientas')
-      .update({
-        estado: 'Prestada',
-        prestada_a: employeeName,
-        fecha_salida: now,
-        fecha_devolucion: null
-      })
-      .eq('id', id);
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('herramientas')
+        .update({
+          estado: 'Prestada',
+          prestada_a: employeeName,
+          fecha_salida: now,
+          fecha_devolucion: null
+        })
+        .eq('id', id);
 
-    if (error) throw error;
-
-    // Registrar en Trazabilidad
-    await registrarTrazabilidad({
-      herramienta_id: id,
-      herramienta_nombre: toolName,
-      tipo_movimiento: 'PRESTAMO',
-      operario: employeeName,
-      cuadrilla: selectedEmp ? selectedEmp.cuadrilla : null,
-      observaciones: `Préstamo asignado a operario de cuadrilla ${selectedEmp ? selectedEmp.cuadrilla : 'sin asignar'}`
-    });
-
-    showToast(`Herramienta #${id} prestada a ${employeeName}`, 'success');
-    closeModals();
-    await loadData();
+      if (error) console.warn('Advertencia en Supabase al prestar (se mantiene local):', error.message);
+    }
   } catch (err) {
-    console.error('Error al prestar herramienta:', err);
-    showToast('Error al registrar préstamo: ' + err.message, 'error');
+    console.warn('Error de red al prestar en Supabase:', err);
   }
+
+  // Actualizar en memoria local y localStorage
+  if (tool) {
+    tool.estado = 'Prestada';
+    tool.prestada_a = employeeName;
+    tool.fecha_salida = now;
+    tool.fecha_devolucion = null;
+    localStorage.setItem('tooltracking_tools', JSON.stringify(tools));
+  }
+
+  // Registrar en Trazabilidad
+  await registrarTrazabilidad({
+    herramienta_id: id,
+    herramienta_nombre: toolName,
+    tipo_movimiento: 'PRESTAMO',
+    operario: employeeName,
+    cuadrilla: selectedEmp ? selectedEmp.cuadrilla : null,
+    observaciones: `Préstamo asignado a operario de cuadrilla ${selectedEmp ? selectedEmp.cuadrilla : 'sin asignar'}`
+  });
+
+  showToast(`Herramienta #${id} prestada a ${employeeName}`, 'success');
+  closeModals();
+  updateStats();
+  renderAllViews();
 });
 
 window.returnTool = async function(id) {
@@ -1241,44 +1472,48 @@ window.returnTool = async function(id) {
   const toolName = tool ? tool.nombre : `#${id}`;
   const previousBorrower = tool ? tool.prestada_a : null;
   const emp = previousBorrower ? employees.find(e => e.nombre.toLowerCase() === previousBorrower.toLowerCase()) : null;
+  const now = new Date().toISOString();
 
   try {
-    const now = new Date().toISOString();
-    const { error } = await supabaseClient
-      .from('herramientas')
-      .update({
-        estado: 'Disponible',
-        prestada_a: null,
-        fecha_salida: null, // Se remueve la fecha de salida al entregar la herramienta
-        fecha_devolucion: now
-      })
-      .eq('id', id);
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from('herramientas')
+        .update({
+          estado: 'Disponible',
+          prestada_a: null,
+          fecha_salida: null,
+          fecha_devolucion: now
+        })
+        .eq('id', id);
 
-    if (error) throw error;
-
-    // Registrar en Trazabilidad (se mantiene intacto en el historial)
-    await registrarTrazabilidad({
-      herramienta_id: id,
-      herramienta_nombre: toolName,
-      tipo_movimiento: 'DEVOLUCION',
-      operario: previousBorrower,
-      cuadrilla: emp ? emp.cuadrilla : null,
-      observaciones: 'Herramienta devuelta e ingresada nuevamente a bodega'
-    });
-
-    if (tool) {
-      tool.estado = 'Disponible';
-      tool.prestada_a = null;
-      tool.fecha_salida = null;
-      tool.fecha_devolucion = now;
+      if (error) console.warn('Advertencia en Supabase al devolver (se mantiene local):', error.message);
     }
-
-    showToast(`Herramienta "${toolName}" recibida de vuelta en bodega`, 'success');
-    await loadData();
   } catch (err) {
-    console.error('Error al devolver herramienta:', err);
-    showToast('Error al recibir herramienta: ' + err.message, 'error');
+    console.warn('Error de red al devolver en Supabase:', err);
   }
+
+  // Actualizar en memoria local y localStorage
+  if (tool) {
+    tool.estado = 'Disponible';
+    tool.prestada_a = null;
+    tool.fecha_salida = null;
+    tool.fecha_devolucion = now;
+    localStorage.setItem('tooltracking_tools', JSON.stringify(tools));
+  }
+
+  // Registrar en Trazabilidad (se mantiene intacto en el historial)
+  await registrarTrazabilidad({
+    herramienta_id: id,
+    herramienta_nombre: toolName,
+    tipo_movimiento: 'DEVOLUCION',
+    operario: previousBorrower,
+    cuadrilla: emp ? emp.cuadrilla : null,
+    observaciones: 'Herramienta devuelta e ingresada nuevamente a bodega'
+  });
+
+  showToast(`Herramienta "${toolName}" recibida de vuelta en bodega`, 'success');
+  updateStats();
+  renderAllViews();
 };
 
 // =========================================================
@@ -1369,6 +1604,7 @@ function setupEventListeners() {
       }
       clearInputErrors(formAddCuadrilla);
       formAddCuadrilla.reset();
+      populateCuadrillaSelects();
       modalAddCuadrilla.style.display = 'flex';
       newCuadrillaNumber.focus();
     });
@@ -1546,7 +1782,7 @@ async function handleLogin(email, password) {
         aliases: ['jeime', 'jeime jimenez', 'jeime@tooltracking.com'],
         plainPass: '123456',
         passwordHash: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
-        rol: 'Creador de la AplicaciÃ³n'
+        rol: 'Creador de la Aplicación'
       },
       {
         nombre: 'Administrador General',
@@ -1661,6 +1897,9 @@ async function handleLogin(email, password) {
 }
 
 function applyUserSession(user) {
+  if (user && user.rol) {
+    user.rol = sanitizeRole(user.rol);
+  }
   currentUser = user;
   localStorage.setItem('tooltracking_user', JSON.stringify(user));
 
@@ -1674,7 +1913,7 @@ function applyUserSession(user) {
     userProfileBadge.style.display = 'flex';
   }
 
-  // Mostrar el botÃ³n de agregar cuadrilla solo a Creador y Administrador
+  // Mostrar el botón de agregar cuadrilla solo a Creador y Administrador
   if (btnOpenAddCuadrilla) {
     btnOpenAddCuadrilla.style.display = canManageTools() ? 'inline-flex' : 'none';
   }

@@ -1,19 +1,26 @@
 -- =========================================================
 -- ToolTracking - Esquema de Base de Datos (PostgreSQL / Supabase)
 -- Autores: Jeime Jiménez & Rhonis Julio
--- Incluye: Cifrado Criptográfico (SHA-256), Trazabilidad y RLS
+-- Incluye: Cifrado Criptográfico (SHA-256), Trazabilidad, Cuadrillas y RLS
 -- =========================================================
 
 -- Extensión criptográfica (opcional en Supabase/PostgreSQL)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. TABLA: Empleados (Operarios de Cuadrillas)
+-- 1. TABLA: Cuadrillas (Grupos de Trabajo)
+CREATE TABLE IF NOT EXISTS cuadrillas (
+    numero INT PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    descripcion TEXT
+);
+
+-- 2. TABLA: Empleados (Operarios de Cuadrillas)
 CREATE TABLE IF NOT EXISTS empleados (
     nombre TEXT PRIMARY KEY,
     cuadrilla INT NOT NULL
 );
 
--- 2. TABLA: Herramientas (Inventario Principal)
+-- 3. TABLA: Herramientas (Inventario Principal)
 CREATE TABLE IF NOT EXISTS herramientas (
     id INT PRIMARY KEY,
     nombre TEXT NOT NULL,
@@ -23,7 +30,7 @@ CREATE TABLE IF NOT EXISTS herramientas (
     fecha_devolucion TIMESTAMPTZ
 );
 
--- 3. TABLA: Usuarios del Sistema (Contraseñas Encriptadas con Hash SHA-256)
+-- 4. TABLA: Usuarios del Sistema (Contraseñas Encriptadas con Hash SHA-256)
 CREATE TABLE IF NOT EXISTS usuarios (
     id SERIAL PRIMARY KEY,
     nombre TEXT NOT NULL,
@@ -32,8 +39,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     rol TEXT DEFAULT 'Operador de Bodega'
 );
 
--- 4. TABLA: Trazabilidad y Auditoría de Movimientos
--- Registra cada evento (Préstamo, Devolución, Alta, Modificación, Baja)
+-- 5. TABLA: Trazabilidad y Auditoría de Movimientos
 CREATE TABLE IF NOT EXISTS trazabilidad (
     id SERIAL PRIMARY KEY,
     herramienta_id INT NOT NULL,
@@ -48,30 +54,46 @@ CREATE TABLE IF NOT EXISTS trazabilidad (
 
 -- =========================================================
 -- Políticas de Seguridad a Nivel de Fila (Row Level Security - RLS)
+-- Recomendación para Supabase: habilitar permisos completos para anon y authenticated
 -- =========================================================
+ALTER TABLE cuadrillas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE empleados ENABLE ROW LEVEL SECURITY;
 ALTER TABLE herramientas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE trazabilidad ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Permitir todo cuadrillas" ON cuadrillas;
+CREATE POLICY "Permitir todo cuadrillas" ON cuadrillas FOR ALL TO anon, authenticated, service_role, public USING (true) WITH CHECK (true);
+
 DROP POLICY IF EXISTS "Permitir todo herramientas" ON herramientas;
-CREATE POLICY "Permitir todo herramientas" ON herramientas FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo herramientas" ON herramientas FOR ALL TO anon, authenticated, service_role, public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Permitir todo empleados" ON empleados;
-CREATE POLICY "Permitir todo empleados" ON empleados FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo empleados" ON empleados FOR ALL TO anon, authenticated, service_role, public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Permitir todo usuarios" ON usuarios;
-CREATE POLICY "Permitir todo usuarios" ON usuarios FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo usuarios" ON usuarios FOR ALL TO anon, authenticated, service_role, public USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Permitir todo trazabilidad" ON trazabilidad;
-CREATE POLICY "Permitir todo trazabilidad" ON trazabilidad FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo trazabilidad" ON trazabilidad FOR ALL TO anon, authenticated, service_role, public USING (true) WITH CHECK (true);
 
 -- Otorgar permisos a roles de Supabase (anon, authenticated, service_role)
-GRANT ALL ON TABLE herramientas TO anon, authenticated, service_role;
-GRANT ALL ON TABLE empleados TO anon, authenticated, service_role;
-GRANT ALL ON TABLE usuarios TO anon, authenticated, service_role;
-GRANT ALL ON TABLE trazabilidad TO anon, authenticated, service_role;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON TABLE cuadrillas TO anon, authenticated, service_role, public;
+GRANT ALL ON TABLE herramientas TO anon, authenticated, service_role, public;
+GRANT ALL ON TABLE empleados TO anon, authenticated, service_role, public;
+GRANT ALL ON TABLE usuarios TO anon, authenticated, service_role, public;
+GRANT ALL ON TABLE trazabilidad TO anon, authenticated, service_role, public;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role, public;
+
+-- =========================================================
+-- Datos Iniciales: Cuadrillas
+-- =========================================================
+INSERT INTO cuadrillas (numero, nombre, descripcion) VALUES
+(1, 'Mantenimiento Mecánico', 'Herramientas de torque, corte y percusión'),
+(2, 'Electricidad y Control', 'Instrumentación, multímetros y aislamiento'),
+(3, 'Soldadura y Estructuras', 'Pailería y montajes'),
+(4, 'Obras Civiles y Demolición', 'Martillos demoledores y perforación')
+ON CONFLICT (numero) DO NOTHING;
 
 -- =========================================================
 -- Datos Iniciales: Empleados
@@ -92,9 +114,9 @@ ON CONFLICT (nombre) DO NOTHING;
 -- =========================================================
 INSERT INTO usuarios (nombre, email, password, rol) VALUES
 ('Administrador General', 'admin@tooltracking.com', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'Administrador General'),
-('Jeime Jiménez', 'jeime@tooltracking.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'Supervisor de Bodega'),
+('Jeime Jiménez', 'jeime@tooltracking.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'Creador de la Aplicación'),
 ('Rhonis Julio', 'rhonis@tooltracking.com', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'Supervisor de Bodega')
-ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password;
+ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, rol = EXCLUDED.rol;
 
 -- =========================================================
 -- Datos Iniciales: Herramientas del Inventario
@@ -118,7 +140,7 @@ INSERT INTO herramientas (id, nombre, estado, prestada_a, fecha_salida, fecha_de
 (116, 'Remachadora Neumática Profesional', 'Disponible', NULL, NULL, NULL),
 (117, 'Llave de Impacto Inalámbrica 1/2"', 'Disponible', NULL, NULL, NULL),
 (118, 'Cizalla Cortapernos 24 Pulgadas', 'Disponible', NULL, NULL, NULL)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
 
 -- =========================================================
 -- Datos Iniciales: Historial de Trazabilidad
